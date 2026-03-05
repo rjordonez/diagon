@@ -675,6 +675,35 @@
   margin: 0;
 }
 
+.typing-cursor {
+  display: inline;
+  font-weight: 300;
+  color: #1D5240;
+  animation: blink 0.7s step-end infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.anim-pop-in {
+  animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.85) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.anim-fade-in {
+  animation: fadeIn 0.4s ease both;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .bx-chat-actions {
   display: flex;
   gap: 8px;
@@ -753,6 +782,13 @@
   background: #10b981;
 }
 
+.bx-doc-prefill {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #1D5240;
+  margin-bottom: 8px;
+}
+
 .bx-doc-table {
   border: 1px solid #f3f4f6;
   border-radius: 10px;
@@ -797,6 +833,7 @@
   align-items: center;
   padding: 14px 0;
   border-bottom: 1px solid #f3f4f6;
+  flex-wrap: wrap;
 }
 
 .bx-form-row:last-child {
@@ -825,8 +862,22 @@
 
 .bx-form-hidden {
   font-size: 0.75rem;
-  color: #9ca3af;
+  color: #dc2626;
   font-weight: 500;
+}
+
+.bx-form-reason {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.bx-personalized {
+  font-size: 0.75rem;
+  color: #1D5240;
+  font-weight: 500;
+  margin-left: auto;
 }
 
 /* ===== Document Verification ===== */

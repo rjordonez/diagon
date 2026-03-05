@@ -1,10 +1,127 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import './App.css'
 
 function App() {
   const [activeTab, setActiveTab] = useState<'officers' | 'operations' | 'borrowers'>('officers')
   const [activeFeature, setActiveFeature] = useState<0 | 1 | 2>(0)
   const [scrolled, setScrolled] = useState(false)
+  const autoPlayRef = useRef(true)
+
+  const advanceFeature = useCallback(() => {
+    if (autoPlayRef.current) {
+      setActiveFeature(prev => ((prev + 1) % 3) as 0 | 1 | 2)
+    }
+  }, [])
+
+  const handleFeatureClick = (f: 0 | 1 | 2) => {
+    autoPlayRef.current = false
+    setActiveFeature(f)
+  }
+
+  // Feature 0: Chat typing animation
+  const [typedUser, setTypedUser] = useState('')
+  const [typedBot, setTypedBot] = useState('')
+  const [typedFollowUp, setTypedFollowUp] = useState('')
+  const [chatPhase, setChatPhase] = useState<'user' | 'bot' | 'followup' | 'done'>('user')
+
+  const fullUserMsg = "What's the difference between FHA and conventional loans?"
+  const fullBotMsg = "FHA loans need 3.5% down and 580+ credit. Conventional loans often have better rates with 620+ credit and 5-20% down."
+  const followUpMsg = "Want me to compare monthly payments for both?"
+
+  useEffect(() => {
+    if (activeFeature !== 0) {
+      setTypedUser('')
+      setTypedBot('')
+      setTypedFollowUp('')
+      setChatPhase('user')
+      return
+    }
+    setTypedUser('')
+    setTypedBot('')
+    setTypedFollowUp('')
+    setChatPhase('user')
+    let cancelled = false
+
+    const run = async () => {
+      setChatPhase('user')
+      setTypedUser('')
+      setTypedBot('')
+      setTypedFollowUp('')
+      for (let i = 1; i <= fullUserMsg.length; i++) {
+        if (cancelled) return
+        await new Promise(r => setTimeout(r, 22))
+        setTypedUser(fullUserMsg.slice(0, i))
+      }
+      if (cancelled) return
+      await new Promise(r => setTimeout(r, 400))
+
+      setChatPhase('bot')
+      for (let i = 1; i <= fullBotMsg.length; i++) {
+        if (cancelled) return
+        await new Promise(r => setTimeout(r, 18))
+        setTypedBot(fullBotMsg.slice(0, i))
+      }
+      if (cancelled) return
+      await new Promise(r => setTimeout(r, 300))
+
+      setChatPhase('followup')
+      for (let i = 1; i <= followUpMsg.length; i++) {
+        if (cancelled) return
+        await new Promise(r => setTimeout(r, 18))
+        setTypedFollowUp(followUpMsg.slice(0, i))
+      }
+      setChatPhase('done')
+      if (cancelled) return
+      await new Promise(r => setTimeout(r, 2000))
+      if (!cancelled) advanceFeature()
+    }
+    run()
+    return () => { cancelled = true }
+  }, [activeFeature, advanceFeature])
+
+  // Feature 1: Doc pop-up + table fade-in animation
+  const [docPhase, setDocPhase] = useState(0)
+
+  useEffect(() => {
+    if (activeFeature !== 1) {
+      setDocPhase(0)
+      return
+    }
+    setDocPhase(0)
+    let cancelled = false
+
+    const run = async () => {
+      await new Promise(r => setTimeout(r, 300))
+      if (cancelled) return
+      setDocPhase(1)
+      await new Promise(r => setTimeout(r, 600))
+      if (cancelled) return
+      setDocPhase(2)
+      await new Promise(r => setTimeout(r, 400))
+      if (cancelled) return
+      setDocPhase(3)
+      await new Promise(r => setTimeout(r, 400))
+      if (cancelled) return
+      setDocPhase(4)
+      await new Promise(r => setTimeout(r, 400))
+      if (cancelled) return
+      setDocPhase(5)
+      await new Promise(r => setTimeout(r, 2000))
+      if (!cancelled) advanceFeature()
+    }
+    run()
+    return () => { cancelled = true }
+  }, [activeFeature, advanceFeature])
+
+  // Feature 2: Auto-advance after delay
+  useEffect(() => {
+    if (activeFeature !== 2) return
+    let cancelled = false
+    const timer = setTimeout(() => {
+      if (!cancelled) advanceFeature()
+    }, 4000)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [activeFeature, advanceFeature])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -29,10 +146,8 @@ function App() {
           </a>
           <ul className="nav-links">
             <li><a href="#features">Features</a></li>
-            <li><a href="#company">Company</a></li>
-            <li><a href="#blogs">Blogs</a></li>
           </ul>
-          <a href="#demo" className="nav-cta">Book a Demo <span className="nav-arrow">&rarr;</span></a>
+          <a href="mailto:rexjordonez@gmail.com?subject=Diagon Demo Request" className="nav-cta">Book a Demo <span className="nav-arrow">&rarr;</span></a>
         </div>
       </nav>
 
@@ -42,8 +157,7 @@ function App() {
           <div className="hero-content">
             <h1>The AI-Native Platform<br />for Mortgage Origination.</h1>
             <div className="hero-buttons">
-              <a href="#" className="btn btn-outline-pill">Who we are</a>
-              <a href="#demo" className="btn btn-dark-pill">Request a demo <span className="arrow">&rarr;</span></a>
+              <a href="mailto:rexjordonez@gmail.com?subject=Diagon Demo Request" className="btn btn-dark-pill">Request a demo <span className="arrow">&rarr;</span></a>
             </div>
           </div>
 
@@ -102,7 +216,7 @@ function App() {
             <div className="helps-divider-v"></div>
             <div className="helps-col-right">
               <a href="#" className="helps-link">See the difference firsthand</a>
-              <a href="#demo" className="btn btn-schedule">Schedule a Demo</a>
+              <a href="mailto:rexjordonez@gmail.com?subject=Diagon Demo Request" className="btn btn-schedule">Schedule a Demo</a>
             </div>
           </div>
         </div>
@@ -215,7 +329,7 @@ function App() {
             <h3 className="bx-title">Borrowers finish applications. Finally.</h3>
 
             <div className="bx-features">
-              <button className={`bx-feature ${activeFeature === 0 ? 'active' : ''}`} onClick={() => setActiveFeature(0)}>
+              <button className={`bx-feature ${activeFeature === 0 ? 'active' : ''}`} onClick={() => handleFeatureClick(0)}>
                 <div className="bx-feature-header">
                   <span className="bx-dot"></span>
                   <span className="bx-feature-name">Instant answers, any time</span>
@@ -224,7 +338,7 @@ function App() {
                   <p className="bx-feature-desc">Terms, requirements, next steps. Borrowers get compliant answers 24/7 without waiting for a callback.</p>
                 )}
               </button>
-              <button className={`bx-feature ${activeFeature === 1 ? 'active' : ''}`} onClick={() => setActiveFeature(1)}>
+              <button className={`bx-feature ${activeFeature === 1 ? 'active' : ''}`} onClick={() => handleFeatureClick(1)}>
                 <div className="bx-feature-header">
                   <span className="bx-dot"></span>
                   <span className="bx-feature-name">Upload once, never retype</span>
@@ -233,7 +347,7 @@ function App() {
                   <p className="bx-feature-desc">Documents are parsed and fields auto-populated across the entire application.</p>
                 )}
               </button>
-              <button className={`bx-feature ${activeFeature === 2 ? 'active' : ''}`} onClick={() => setActiveFeature(2)}>
+              <button className={`bx-feature ${activeFeature === 2 ? 'active' : ''}`} onClick={() => handleFeatureClick(2)}>
                 <div className="bx-feature-header">
                   <span className="bx-dot"></span>
                   <span className="bx-feature-name">Forms that adapt</span>
@@ -256,14 +370,27 @@ function App() {
                   <span className="bx-card-title">Penny</span>
                 </div>
                 <div className="bx-card-body">
-                  <div className="bx-chat-msg user">What's the difference between FHA and conventional loans?</div>
-                  <div className="bx-chat-msg bot">
-                    <p>FHA loans need 3.5% down and 580+ credit. Conventional loans typically require higher credit but offer lower PMI rates.</p>
-                  </div>
-                  <div className="bx-chat-actions">
-                    <button className="bx-chat-btn bx-chat-btn-outline">Compare payments</button>
-                    <button className="bx-chat-btn bx-chat-btn-dark">Ask another question</button>
-                  </div>
+                  {typedUser && (
+                    <div className="bx-chat-msg user">
+                      {typedUser}{chatPhase === 'user' && <span className="typing-cursor">|</span>}
+                    </div>
+                  )}
+                  {typedBot && (
+                    <div className="bx-chat-msg bot">
+                      <p>{typedBot}{chatPhase === 'bot' && <span className="typing-cursor">|</span>}</p>
+                    </div>
+                  )}
+                  {typedFollowUp && (
+                    <div className="bx-chat-msg bot">
+                      <p>{typedFollowUp}{chatPhase === 'followup' && <span className="typing-cursor">|</span>}</p>
+                    </div>
+                  )}
+                  {chatPhase === 'done' && (
+                    <div className="bx-chat-actions anim-fade-in">
+                      <button className="bx-chat-btn bx-chat-btn-outline">Compare payments</button>
+                      <button className="bx-chat-btn bx-chat-btn-dark">Ask another question</button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -275,26 +402,39 @@ function App() {
                   <span className="bx-card-title">Document Processing</span>
                 </div>
                 <div className="bx-card-body">
-                  <div className="bx-doc-file">
-                    <span className="bx-doc-icon">&#128196;</span>
-                    <div className="bx-doc-info">
-                      <strong>W2_2024_JohnDoe.pdf</strong>
-                      <span className="bx-doc-status"><span className="bx-status-dot"></span>Complete</span>
+                  {docPhase >= 1 && (
+                    <div className="bx-doc-file anim-pop-in">
+                      <span className="bx-doc-icon">&#128196;</span>
+                      <div className="bx-doc-info">
+                        <strong>W2_2024_JohnDoe.pdf</strong>
+                        <span className="bx-doc-status"><span className="bx-status-dot"></span>Complete</span>
+                      </div>
                     </div>
-                  </div>
+                  )}
+                  {docPhase >= 2 && (
+                    <p className="bx-doc-prefill anim-fade-in">Extracted & prefilled</p>
+                  )}
                   <div className="bx-doc-table">
-                    <div className="bx-doc-row header">
-                      <span>Field</span><span>Extracted Value</span>
-                    </div>
-                    <div className="bx-doc-row">
-                      <span>Employer name</span><span>Acme Corp</span>
-                    </div>
-                    <div className="bx-doc-row">
-                      <span>Annual income</span><span>$92,400</span>
-                    </div>
-                    <div className="bx-doc-row">
-                      <span>Tax year</span><span>2024</span>
-                    </div>
+                    {docPhase >= 2 && (
+                      <div className="bx-doc-row header anim-fade-in">
+                        <span>Field</span><span>Extracted Value</span>
+                      </div>
+                    )}
+                    {docPhase >= 3 && (
+                      <div className="bx-doc-row anim-fade-in">
+                        <span>Employer name</span><span>Acme Corp</span>
+                      </div>
+                    )}
+                    {docPhase >= 4 && (
+                      <div className="bx-doc-row anim-fade-in">
+                        <span>Annual income</span><span>$92,400</span>
+                      </div>
+                    )}
+                    {docPhase >= 5 && (
+                      <div className="bx-doc-row anim-fade-in">
+                        <span>Tax year</span><span>2024</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -305,24 +445,27 @@ function App() {
               <div className="bx-card">
                 <div className="bx-card-header">
                   <span className="bx-card-title">Application Form</span>
+                  <span className="bx-personalized">Personalized</span>
                 </div>
                 <div className="bx-card-body">
                   <div className="bx-form-rows">
                     <div className="bx-form-row">
                       <span className="bx-form-name">Employment</span>
-                      <span className="bx-form-count">4 fields</span>
+                      <span className="bx-form-count">3 fields</span>
                     </div>
                     <div className="bx-form-row">
                       <span className="bx-form-name">Property</span>
-                      <span className="bx-form-count">6 fields</span>
+                      <span className="bx-form-count">5 fields</span>
                     </div>
                     <div className="bx-form-row hidden-row">
                       <span className="bx-form-name strikethrough">Self-Employment</span>
                       <span className="bx-form-hidden">Hidden</span>
+                      <span className="bx-form-reason">Not applicable since you indicated W-2 income only</span>
                     </div>
                     <div className="bx-form-row hidden-row">
                       <span className="bx-form-name strikethrough">VA Eligibility</span>
                       <span className="bx-form-hidden">Hidden</span>
+                      <span className="bx-form-reason">Not applicable for conventional loan</span>
                     </div>
                   </div>
                 </div>
@@ -474,7 +617,7 @@ function App() {
       <section id="demo" className="cta-section">
         <div className="section-container">
           <h2>Ready to stop chasing paperwork?</h2>
-          <a href="#" className="btn btn-cta">Request a Demo</a>
+          <a href="mailto:rexjordonez@gmail.com?subject=Diagon Demo Request" className="btn btn-cta">Request a Demo</a>
         </div>
       </section>
 
@@ -492,11 +635,10 @@ function App() {
             </div>
             <p>The AI-native platform for mortgage origination. We handle the back-and-forth with borrowers so you can focus on closing loans.</p>
           </div>
-          <div className="footer-col" id="company">
+          <div className="footer-col">
             <h4>Company</h4>
             <ul>
               <li><a href="#">About</a></li>
-              <li><a href="#" id="blogs">Blogs</a></li>
               <li><a href="#">Contact</a></li>
             </ul>
           </div>
