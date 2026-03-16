@@ -146,6 +146,7 @@ function App() {
           </a>
           <ul className="nav-links">
             <li><a href="#features">Features</a></li>
+            <li><a href="/login">Sign In</a></li>
           </ul>
           <a href="mailto:rexjordonez@gmail.com?subject=Diagon Demo Request" className="nav-cta">Book a Demo <span className="nav-arrow">&rarr;</span></a>
         </div>
