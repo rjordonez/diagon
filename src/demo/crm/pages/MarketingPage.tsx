@@ -9,7 +9,9 @@ import {
   MY_PROFILE,
   MY_CAMPAIGNS,
   MY_INCOMING_LEADS,
+  MOCK_BORROWERS,
   type IncomingLead,
+  type Borrower,
 } from "../data/mockData";
 
 const formatCurrency = (n: number) =>
@@ -29,16 +31,61 @@ const CAMPAIGN_STATUS_BADGE: Record<string, string> = {
 
 type Tab = "leads" | "campaigns" | "analytics" | "settings";
 
-// Computed KPIs
-const todayLeads = MY_INCOMING_LEADS.filter((l) => l.timestamp.startsWith("Today"));
-const pendingLeads = MY_INCOMING_LEADS.filter((l) => l.status === "new");
-const acceptedLeads = MY_INCOMING_LEADS.filter((l) => l.status === "accepted");
-const rejectedLeads = MY_INCOMING_LEADS.filter((l) => l.status === "rejected");
-const returnedLeads = MY_INCOMING_LEADS.filter((l) => l.status === "returned");
-const spendToday = todayLeads.filter((l) => l.status === "accepted").reduce((s, l) => s + l.price, 0);
+function acceptLeadToPipeline(lead: IncomingLead) {
+  const nameParts = lead.name.trim().split(/\s+/);
+  const firstName = nameParts[0] || "";
+  const lastName = nameParts.slice(1).join(" ") || "";
+
+  const newBorrower: Borrower = {
+    id: String(Date.now()),
+    firstName,
+    lastName,
+    email: lead.email,
+    phone: lead.phone,
+    loanAmount: lead.loanAmount,
+    loanPurpose: lead.loanType,
+    propertyAddress: lead.propertyAddress,
+    stage: "new-lead",
+    leadTemp: "warm",
+    leadScore: 50,
+    daysInStage: 0,
+    leadSource: lead.source,
+    docsRequested: 0,
+    docsReceived: 0,
+    docsVerified: 0,
+    aiFlags: 0,
+    verificationStatus: "pending",
+    lastActivity: "Just now",
+    nextAction: "Initial outreach",
+    assignedLO: "Sarah Chen",
+    notes: "",
+    createdAt: new Date().toISOString().split("T")[0],
+    speedToLeadEnabled: false,
+  };
+
+  MOCK_BORROWERS.unshift(newBorrower);
+}
 
 export const MarketingPage = () => {
   const [tab, setTab] = useState<Tab>("leads");
+  const [leads, setLeads] = useState<IncomingLead[]>([...MY_INCOMING_LEADS]);
+
+  const updateLeadStatus = (leadId: string, status: IncomingLead["status"]) => {
+    setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, status } : l));
+  };
+
+  const handleAccept = (lead: IncomingLead) => {
+    acceptLeadToPipeline(lead);
+    updateLeadStatus(lead.id, "accepted");
+  };
+
+  const handleReject = (leadId: string) => {
+    updateLeadStatus(leadId, "rejected");
+  };
+
+  const handleReturn = (leadId: string) => {
+    updateLeadStatus(leadId, "returned");
+  };
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-4">
@@ -72,20 +119,31 @@ export const MarketingPage = () => {
       </div>
 
       {/* Tab content */}
-      {tab === "leads" && <IncomingLeadsTab />}
+      {tab === "leads" && <IncomingLeadsTab leads={leads} onAccept={handleAccept} onReject={handleReject} onReturn={handleReturn} />}
       {tab === "campaigns" && <MyCampaignsTab />}
-      {tab === "analytics" && <AnalyticsTab />}
+      {tab === "analytics" && <AnalyticsTab leads={leads} />}
       {tab === "settings" && <SettingsTab />}
     </div>
   );
 };
 
 /* ── Incoming Leads Tab ── */
-const IncomingLeadsTab = () => {
+const IncomingLeadsTab = ({ leads, onAccept, onReject, onReturn }: {
+  leads: IncomingLead[];
+  onAccept: (lead: IncomingLead) => void;
+  onReject: (leadId: string) => void;
+  onReturn: (leadId: string) => void;
+}) => {
   const [filter, setFilter] = useState<"all" | IncomingLead["status"]>("all");
   const [expandedLead, setExpandedLead] = useState<string | null>(null);
 
-  const filtered = filter === "all" ? MY_INCOMING_LEADS : MY_INCOMING_LEADS.filter((l) => l.status === filter);
+  const filtered = filter === "all" ? leads : leads.filter((l) => l.status === filter);
+  const todayLeads = leads.filter((l) => l.timestamp.startsWith("Today"));
+  const pendingLeads = leads.filter((l) => l.status === "new");
+  const acceptedLeads = leads.filter((l) => l.status === "accepted");
+  const rejectedLeads = leads.filter((l) => l.status === "rejected");
+  const returnedLeads = leads.filter((l) => l.status === "returned");
+  const spendToday = todayLeads.filter((l) => l.status === "accepted").reduce((s, l) => s + l.price, 0);
 
   return (
     <div className="space-y-4">
@@ -107,7 +165,7 @@ const IncomingLeadsTab = () => {
       {/* Filter bar */}
       <div className="flex gap-1.5 overflow-x-auto">
         {([
-          { id: "all" as const, label: "All", count: MY_INCOMING_LEADS.length },
+          { id: "all" as const, label: "All", count: leads.length },
           { id: "new" as const, label: "New", count: pendingLeads.length },
           { id: "accepted" as const, label: "Accepted", count: acceptedLeads.length },
           { id: "rejected" as const, label: "Rejected", count: rejectedLeads.length },
@@ -185,7 +243,7 @@ const IncomingLeadsTab = () => {
                       </span>
                     </td>
                     <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
-                      <LeadActions lead={lead} />
+                      <LeadActions lead={lead} onAccept={onAccept} onReject={onReject} onReturn={onReturn} />
                     </td>
                   </tr>
                   {/* Expanded detail row */}
@@ -246,7 +304,7 @@ const IncomingLeadsTab = () => {
                 <Fingerprint className={cn("h-3 w-3", lead.leadIdToken ? "text-stage-approved-foreground" : "text-muted-foreground/30")} />
                 <Copy className={cn("h-3 w-3", lead.dupeCheck ? "text-stage-approved-foreground" : "text-muted-foreground/30")} />
               </div>
-              <LeadActions lead={lead} />
+              <LeadActions lead={lead} onAccept={onAccept} onReject={onReject} onReturn={onReturn} />
             </div>
           ))}
         </div>
@@ -256,14 +314,19 @@ const IncomingLeadsTab = () => {
 };
 
 /* ── Lead action buttons ── */
-const LeadActions = ({ lead }: { lead: IncomingLead }) => {
+const LeadActions = ({ lead, onAccept, onReject, onReturn }: {
+  lead: IncomingLead;
+  onAccept: (lead: IncomingLead) => void;
+  onReject: (leadId: string) => void;
+  onReturn: (leadId: string) => void;
+}) => {
   if (lead.status === "new") {
     return (
       <div className="flex items-center gap-1.5">
-        <button className="h-7 px-2.5 rounded-md bg-foreground text-background text-xs font-semibold flex items-center gap-1 hover:opacity-80 transition-opacity">
+        <button onClick={() => onAccept(lead)} className="h-7 px-2.5 rounded-md bg-foreground text-background text-xs font-semibold flex items-center gap-1 hover:opacity-80 transition-opacity">
           <CheckCircle2 className="h-3 w-3" /> Accept
         </button>
-        <button className="h-7 px-2.5 rounded-md border border-border text-xs font-medium flex items-center gap-1 hover:bg-muted transition-colors">
+        <button onClick={() => onReject(lead.id)} className="h-7 px-2.5 rounded-md border border-border text-xs font-medium flex items-center gap-1 hover:bg-muted transition-colors">
           <XCircle className="h-3 w-3" /> Reject
         </button>
       </div>
@@ -271,7 +334,7 @@ const LeadActions = ({ lead }: { lead: IncomingLead }) => {
   }
   if (lead.status === "accepted") {
     return (
-      <button className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+      <button onClick={() => onReturn(lead.id)} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
         <Undo2 className="h-3 w-3" /> Return
       </button>
     );
@@ -333,87 +396,87 @@ const MyCampaignsTab = () => (
 );
 
 /* ── Analytics Tab ── */
-const totalReceived = MY_INCOMING_LEADS.length;
-const totalAccepted = acceptedLeads.length;
-const totalRejected = rejectedLeads.length;
-const totalReturned = returnedLeads.length;
-const totalSpend = MY_INCOMING_LEADS.filter((l) => l.status === "accepted").reduce((s, l) => s + l.price, 0);
-const avgPerLead = totalAccepted > 0 ? Math.round(totalSpend / totalAccepted) : 0;
+const AnalyticsTab = ({ leads }: { leads: IncomingLead[] }) => {
+  const totalReceived = leads.length;
+  const totalAccepted = leads.filter((l) => l.status === "accepted").length;
+  const totalRejected = leads.filter((l) => l.status === "rejected").length;
+  const totalReturned = leads.filter((l) => l.status === "returned").length;
+  const totalSpend = leads.filter((l) => l.status === "accepted").reduce((s, l) => s + l.price, 0);
+  const avgPerLead = totalAccepted > 0 ? Math.round(totalSpend / totalAccepted) : 0;
 
-// Leads by campaign
-const leadsByCampaign = MY_CAMPAIGNS.map((c) => ({
-  label: c.name,
-  value: MY_INCOMING_LEADS.filter((l) => l.source === c.name).length,
-}));
-const maxByCampaign = Math.max(...leadsByCampaign.map((c) => c.value), 1);
+  const leadsByCampaign = MY_CAMPAIGNS.map((c) => ({
+    label: c.name,
+    value: leads.filter((l) => l.source === c.name).length,
+  }));
+  const maxByCampaign = Math.max(...leadsByCampaign.map((c) => c.value), 1);
 
-// Leads by loan type
-const loanTypes = [...new Set(MY_INCOMING_LEADS.map((l) => l.loanType))];
-const leadsByLoanType = loanTypes.map((lt) => ({
-  label: lt,
-  value: MY_INCOMING_LEADS.filter((l) => l.loanType === lt).length,
-}));
-const maxByLoanType = Math.max(...leadsByLoanType.map((c) => c.value), 1);
+  const loanTypes = [...new Set(leads.map((l) => l.loanType))];
+  const leadsByLoanType = loanTypes.map((lt) => ({
+    label: lt,
+    value: leads.filter((l) => l.loanType === lt).length,
+  }));
+  const maxByLoanType = Math.max(...leadsByLoanType.map((c) => c.value), 1);
 
-const AnalyticsTab = () => (
-  <div className="space-y-4">
-    {/* KPI grid */}
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-      {[
-        { label: "Total Received", value: String(totalReceived) },
-        { label: "Accepted", value: String(totalAccepted) },
-        { label: "Rejected", value: String(totalRejected) },
-        { label: "Returned", value: String(totalReturned) },
-        { label: "Total Spend", value: formatCurrency(totalSpend) },
-        { label: "Avg $/Lead", value: formatCurrency(avgPerLead) },
-      ].map((kpi) => (
-        <div key={kpi.label} className="bg-background rounded-lg border border-border p-4">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{kpi.label}</p>
-          <p className="text-2xl font-bold text-foreground mt-1">{kpi.value}</p>
-        </div>
-      ))}
-    </div>
-
-    {/* Charts */}
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      {/* Leads by Campaign */}
-      <div className="bg-background rounded-lg border border-border p-4 md:p-5">
-        <h3 className="text-sm font-semibold text-foreground mb-4">Leads by Campaign</h3>
-        <div className="space-y-3">
-          {leadsByCampaign.map((item) => (
-            <div key={item.label}>
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-muted-foreground truncate mr-2">{item.label}</span>
-                <span className="text-foreground font-medium shrink-0">{item.value}</span>
-              </div>
-              <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-foreground rounded-full transition-all" style={{ width: `${(item.value / maxByCampaign) * 100}%` }} />
-              </div>
-            </div>
-          ))}
-        </div>
+  return (
+    <div className="space-y-4">
+      {/* KPI grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {[
+          { label: "Total Received", value: String(totalReceived) },
+          { label: "Accepted", value: String(totalAccepted) },
+          { label: "Rejected", value: String(totalRejected) },
+          { label: "Returned", value: String(totalReturned) },
+          { label: "Total Spend", value: formatCurrency(totalSpend) },
+          { label: "Avg $/Lead", value: formatCurrency(avgPerLead) },
+        ].map((kpi) => (
+          <div key={kpi.label} className="bg-background rounded-lg border border-border p-4">
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{kpi.label}</p>
+            <p className="text-2xl font-bold text-foreground mt-1">{kpi.value}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Leads by Loan Type */}
-      <div className="bg-background rounded-lg border border-border p-4 md:p-5">
-        <h3 className="text-sm font-semibold text-foreground mb-4">Leads by Loan Type</h3>
-        <div className="space-y-3">
-          {leadsByLoanType.map((item) => (
-            <div key={item.label}>
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-muted-foreground truncate mr-2">{item.label}</span>
-                <span className="text-foreground font-medium shrink-0">{item.value}</span>
+      {/* Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {/* Leads by Campaign */}
+        <div className="bg-background rounded-lg border border-border p-4 md:p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Leads by Campaign</h3>
+          <div className="space-y-3">
+            {leadsByCampaign.map((item) => (
+              <div key={item.label}>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-muted-foreground truncate mr-2">{item.label}</span>
+                  <span className="text-foreground font-medium shrink-0">{item.value}</span>
+                </div>
+                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-foreground rounded-full transition-all" style={{ width: `${(item.value / maxByCampaign) * 100}%` }} />
+                </div>
               </div>
-              <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-foreground rounded-full transition-all" style={{ width: `${(item.value / maxByLoanType) * 100}%` }} />
+            ))}
+          </div>
+        </div>
+
+        {/* Leads by Loan Type */}
+        <div className="bg-background rounded-lg border border-border p-4 md:p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Leads by Loan Type</h3>
+          <div className="space-y-3">
+            {leadsByLoanType.map((item) => (
+              <div key={item.label}>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-muted-foreground truncate mr-2">{item.label}</span>
+                  <span className="text-foreground font-medium shrink-0">{item.value}</span>
+                </div>
+                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-foreground rounded-full transition-all" style={{ width: `${(item.value / maxByLoanType) * 100}%` }} />
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* ── Settings Tab ── */
 const VALIDATION_SERVICES = [
