@@ -1,0 +1,132 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 98%;
+    --foreground: 220 15% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 20%;
+
+    --primary: 220 15% 25%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 15% 95%;
+    --secondary-foreground: 220 10% 40%;
+
+    --muted: 220 15% 95%;
+    --muted-foreground: 220 10% 50%;
+
+    --accent: 220 15% 95%;
+    --accent-foreground: 220 15% 20%;
+
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 90%;
+    --input: 220 15% 90%;
+    --ring: 220 15% 50%;
+
+    --radius: 10px;
+
+    --success: 152 55% 48%;
+    --success-foreground: 0 0% 100%;
+
+    --hot: 14 70% 55%;
+    --hot-foreground: 0 0% 100%;
+    --warm: 35 75% 55%;
+    --warm-foreground: 30 50% 22%;
+    --cold: 215 35% 55%;
+    --cold-foreground: 215 30% 22%;
+
+    --stage-new: 215 30% 94%;
+    --stage-new-foreground: 215 25% 42%;
+    --stage-active: 35 65% 93%;
+    --stage-active-foreground: 30 50% 32%;
+    --stage-progress: 14 55% 94%;
+    --stage-progress-foreground: 14 50% 38%;
+    --stage-approved: 152 40% 93%;
+    --stage-approved-foreground: 152 40% 32%;
+    --stage-closed: 152 45% 45%;
+    --stage-closed-foreground: 0 0% 100%;
+    --stage-hold: 45 40% 93%;
+    --stage-hold-foreground: 45 35% 38%;
+    --stage-dead: 0 25% 94%;
+    --stage-dead-foreground: 0 18% 48%;
+
+    --surface: 0 0% 100%;
+    --text-dark: 220 15% 20%;
+    --text-body: 220 10% 35%;
+    --text-muted: 220 10% 50%;
+    --nav-bg: 220 20% 98%;
+    --chat-bubble: 220 15% 95%;
+
+    --sidebar-background: 220 20% 98%;
+    --sidebar-foreground: 220 10% 40%;
+    --sidebar-primary: 220 15% 25%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 95%;
+    --sidebar-accent-foreground: 220 15% 20%;
+    --sidebar-border: 220 15% 90%;
+    --sidebar-ring: 220 15% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+}
+
+@layer components {
+  .form-label {
+    @apply text-[13px] font-medium text-foreground;
+  }
+
+  .form-required {
+    @apply text-foreground text-[13px] ml-0.5;
+  }
+
+  .form-input {
+    @apply h-11 w-full rounded-lg border border-input bg-background px-3 text-[15px] placeholder:text-muted-foreground focus:border-foreground focus:ring-1 focus:ring-foreground focus:outline-none transition-colors;
+  }
+
+  .form-input-error {
+    @apply border-destructive focus:border-destructive focus:ring-destructive;
+  }
+
+  .form-error-text {
+    @apply text-destructive text-xs mt-1;
+  }
+
+  .section-title {
+    @apply text-2xl font-bold text-foreground tracking-tight;
+  }
+
+  .section-subtitle {
+    @apply text-sm text-muted-foreground;
+  }
+
+  .nav-step {
+    @apply flex items-center gap-2 h-9 px-3 text-[13px] font-medium text-muted-foreground cursor-pointer rounded-lg transition-colors;
+  }
+
+  .nav-step-active {
+    @apply text-foreground font-semibold;
+  }
+
+  .chat-bubble-user {
+    @apply bg-foreground text-background rounded-2xl rounded-br-sm px-4 py-2.5 text-sm max-w-[85%] ml-auto;
+  }
+
+  .chat-bubble-penny {
+    @apply text-sm text-foreground max-w-[85%];
+  }
+}
