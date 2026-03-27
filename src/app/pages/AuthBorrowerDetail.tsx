@@ -168,7 +168,7 @@ export const AuthBorrowerDetail = () => {
         )}
         {activeTab === "activity" && (
           <div className="text-center py-8 text-sm text-muted-foreground">
-            No activity yet.
+            No activity yet. Use the <a href="/app/ai" className="text-foreground underline">AI Agent</a> to communicate with this borrower.
           </div>
         )}
         {activeTab === "speed-to-lead" && (

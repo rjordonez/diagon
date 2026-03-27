@@ -183,6 +183,72 @@ export function useReturnLead() {
   });
 }
 
+// Messages hooks
+interface Message {
+  id: string;
+  borrowerId: string;
+  direction: "outbound" | "inbound";
+  recipient: string;
+  body: string;
+  status: string;
+  sentAt: string | null;
+  createdAt: string;
+}
+
+function mapMessage(row: Record<string, unknown>): Message {
+  return {
+    id: row.id as string,
+    borrowerId: row.borrower_id as string,
+    direction: row.direction as "outbound" | "inbound",
+    recipient: row.recipient as string,
+    body: row.body as string,
+    status: (row.status as string) || "queued",
+    sentAt: row.sent_at ? (row.sent_at as string) : null,
+    createdAt: (row.created_at as string) || new Date().toISOString(),
+  };
+}
+
+export function useMessages(borrowerId: string | undefined) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["messages", borrowerId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("borrower_id", borrowerId!)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data || []).map(mapMessage);
+    },
+    enabled: !!user && !!borrowerId,
+    refetchInterval: 5000, // poll every 5s for new inbound messages
+  });
+}
+
+export function useSendMessage() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { borrowerId: string; recipient: string; body: string }) => {
+      if (!user) throw new Error("Not authenticated");
+      const { error } = await supabase.from("messages").insert({
+        user_id: user.id,
+        borrower_id: data.borrowerId,
+        direction: "outbound",
+        recipient: data.recipient,
+        body: data.body,
+        status: "queued",
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["messages", variables.borrowerId] });
+    },
+  });
+}
+
 export function useAddBorrower() {
   const { user } = useAuth();
   const queryClient = useQueryClient();

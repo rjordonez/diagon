@@ -1,0 +1,19 @@
+{
+  "name": "diagon-backend",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "npx tsx --watch index.ts",
+    "start": "npx tsx index.ts"
+  },
+  "dependencies": {
+    "@photon-ai/imessage-kit": "latest",
+    "@supabase/supabase-js": "^2",
+    "dotenv": "^16"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4"
+  }
+}

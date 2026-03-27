@@ -9,6 +9,8 @@ import { AuthDashboard } from "./pages/AuthDashboard";
 import { AuthPipelinePage } from "./pages/AuthPipelinePage";
 import { AuthBorrowerDetail } from "./pages/AuthBorrowerDetail";
 import { AuthMarketingPage } from "./pages/AuthMarketingPage";
+import { AIAgentPage } from "./pages/AIAgentPage";
+import { StorePage } from "./pages/StorePage";
 import { AuthSettingsPage } from "./pages/AuthSettingsPage";
 import NotFound from "@/demo/pages/NotFound";
 
@@ -25,6 +27,8 @@ const AuthenticatedApp = () => (
           <Route path="pipeline" element={<AuthPipelinePage />} />
           <Route path="borrower/:id" element={<AuthBorrowerDetail />} />
           <Route path="marketing" element={<AuthMarketingPage />} />
+          <Route path="ai" element={<AIAgentPage />} />
+          <Route path="store" element={<StorePage />} />
           <Route path="settings" element={<AuthSettingsPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

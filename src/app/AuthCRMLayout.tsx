@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, Kanban, Send, Settings, Bell, Plus, Search, Menu, X, LogOut,
+  LayoutDashboard, Kanban, Send, Settings, Bell, Plus, Search, Menu, X, LogOut, Bot, Archive,
 } from "lucide-react";
 import { cn } from "@/demo/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
@@ -11,6 +11,8 @@ const NAV_ITEMS = [
   { to: "/app", icon: LayoutDashboard, label: "Dashboard", end: true },
   { to: "/app/pipeline", icon: Kanban, label: "Pipeline" },
   { to: "/app/marketing", icon: Send, label: "Lead Distribution" },
+  { to: "/app/ai", icon: Bot, label: "AI Agent" },
+  { to: "/app/store", icon: Archive, label: "Store" },
   { to: "/app/settings", icon: Settings, label: "Settings" },
 ];
 
