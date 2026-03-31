@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { LayoutDashboard, FileText, DollarSign, LogOut, Menu, X, Bell } from "lucide-react";
+import { CopilotChat } from "./components/CopilotChat";
 import { cn } from "@/demo/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -93,11 +94,14 @@ export const PortalLayout = () => {
           </header>
 
           {/* Page Content */}
-          <main className="flex-1 overflow-y-auto bg-background p-4 md:p-6">
+          <main className="flex-1 overflow-y-auto bg-background">
             <Outlet />
           </main>
         </div>
       </div>
+
+      {/* Copilot Chat */}
+      <CopilotChat />
     </div>
   );
 };

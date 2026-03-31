@@ -40,7 +40,7 @@ export const QuotePage = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       <div>
         <Link to="/portal" className="text-xs text-muted-foreground flex items-center gap-1 mb-3 hover:text-foreground">
           <ArrowLeft className="h-3 w-3" /> Back to Overview

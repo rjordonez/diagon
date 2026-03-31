@@ -1,12 +1,10 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Check, Loader2, Upload, FileText, Circle } from "lucide-react";
 import { cn } from "@/demo/lib/utils";
 import {
   useMyApplications,
   useApplication,
-  useFormResponses,
-  useSaveFormResponse,
   useSubmitApplication,
 } from "../hooks/usePortalData";
 import { usePublicUploadItems, useSubmitUpload, type PublicUploadItem } from "@/hooks/usePublicUpload";
@@ -29,9 +27,7 @@ export const ApplicationPage = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [gateAnswers, setGateAnswers] = useState<Record<string, string>>({});
   const [textValues, setTextValues] = useState<Record<string, string>>({});
-  const handleTextChange = (itemId: string, value: string) => setTextValues((p) => ({ ...p, [itemId]: value }));
 
-  // Build sections from upload items
   const sections = useMemo(() => {
     const map = new Map<string, PublicUploadItem[]>();
     for (const item of uploadItems) {
@@ -49,18 +45,21 @@ export const ApplicationPage = () => {
 
   const isSubmitted = app?.status === "submitted" || app?.status === "quoted";
 
-  if (isLoading) return <p className="text-sm text-muted-foreground py-12 text-center">Loading...</p>;
+  if (isLoading) return <div className="p-6"><p className="text-sm text-muted-foreground">Loading...</p></div>;
+
   if (!app) return (
-    <div className="py-16 text-center">
-      <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-      <h2 className="text-lg font-semibold mb-1">No Application Yet</h2>
-      <p className="text-sm text-muted-foreground">Your loan officer will send you an invitation link to get started.</p>
+    <div className="flex items-center justify-center h-full p-6">
+      <div className="text-center">
+        <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+        <h2 className="text-lg font-semibold mb-1">No Application Yet</h2>
+        <p className="text-sm text-muted-foreground">Your loan officer will send you an invitation link to get started.</p>
+      </div>
     </div>
   );
 
-  if (isSubmitted) {
-    return (
-      <div className="py-16 text-center">
+  if (isSubmitted) return (
+    <div className="flex items-center justify-center h-full p-6">
+      <div className="text-center">
         <div className="h-16 w-16 rounded-full bg-foreground/10 flex items-center justify-center mx-auto mb-4">
           <Check className="h-7 w-7 text-foreground" />
         </div>
@@ -70,10 +69,10 @@ export const ApplicationPage = () => {
           View Quote <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (sections.length === 0) return <p className="text-sm text-muted-foreground py-12 text-center">Loading...</p>;
+  if (sections.length === 0) return <div className="p-6"><p className="text-sm text-muted-foreground">Loading...</p></div>;
 
   const safeStep = Math.min(currentStep, sections.length - 1);
   const currentSection = sections[safeStep];
@@ -86,11 +85,11 @@ export const ApplicationPage = () => {
   };
 
   return (
-    <div className="flex gap-6">
+    <div className="flex h-full">
       {/* Left: Section stepper */}
-      <div className="w-48 shrink-0 hidden md:flex flex-col">
+      <div className="w-56 shrink-0 border-r border-border p-4 hidden md:flex flex-col">
         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Sections</p>
-        <div className="space-y-0.5">
+        <div className="space-y-0.5 flex-1">
           {sections.map((sec, i) => {
             const isActive = i === safeStep;
             const isComplete = sec.uploaded === sec.total && sec.total > 0;
@@ -115,7 +114,7 @@ export const ApplicationPage = () => {
           })}
         </div>
 
-        <div className="mt-auto pt-4 border-t border-border">
+        <div className="pt-4 border-t border-border">
           <p className="text-[10px] text-muted-foreground">{completedDocs}/{allDocs.length} documents uploaded</p>
           <div className="h-1.5 bg-muted rounded-full mt-1.5 overflow-hidden">
             <div className="h-full bg-foreground rounded-full transition-all"
@@ -124,32 +123,33 @@ export const ApplicationPage = () => {
         </div>
       </div>
 
-      {/* Right: Current section */}
-      <div className="flex-1 min-w-0">
-        {/* Mobile step indicator */}
-        <div className="md:hidden mb-4">
-          <p className="text-xs text-muted-foreground mb-2">Section {safeStep + 1} of {sections.length}</p>
-          <div className="flex items-center gap-1">
-            {sections.map((_, i) => (
-              <button key={i} onClick={() => setCurrentStep(i)}
-                className={cn("h-1.5 flex-1 rounded-full transition-colors", i <= safeStep ? "bg-foreground" : "bg-muted")} />
-            ))}
-          </div>
+      {/* Right: Content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Section header */}
+        <div className="px-6 py-4 border-b border-border shrink-0">
+          <h2 className="text-lg font-semibold">{currentSection.title}</h2>
+          {!currentSection.gate && (
+            <p className="text-xs text-muted-foreground mt-0.5">{currentSection.uploaded}/{currentSection.total} completed</p>
+          )}
         </div>
 
-        {/* Section content */}
-        <div>
-          <div className="mb-5 pb-4 border-b border-border">
-            <h2 className="text-lg font-semibold">{currentSection.title}</h2>
-            {!currentSection.gate && (
-              <p className="text-xs text-muted-foreground mt-0.5">{currentSection.uploaded}/{currentSection.total} completed</p>
-            )}
-          </div>
+        {/* Section items */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="max-w-2xl space-y-4">
+            {/* Mobile step indicator */}
+            <div className="md:hidden mb-4">
+              <p className="text-xs text-muted-foreground mb-2">Section {safeStep + 1} of {sections.length}</p>
+              <div className="flex items-center gap-1">
+                {sections.map((_, i) => (
+                  <button key={i} onClick={() => setCurrentStep(i)}
+                    className={cn("h-1.5 flex-1 rounded-full transition-colors", i <= safeStep ? "bg-foreground" : "bg-muted")} />
+                ))}
+              </div>
+            </div>
 
-          <div className="space-y-3">
             {/* Gate question */}
             {currentSection.gate && (
-              <div className="bg-blue-500/5 border border-blue-500/15 rounded-lg p-4 mb-2">
+              <div className="bg-blue-500/5 border border-blue-500/15 rounded-lg p-4">
                 <p className="text-sm font-medium mb-3">{currentSection.gate.templateItemName}</p>
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -166,10 +166,11 @@ export const ApplicationPage = () => {
               </div>
             )}
 
-            {/* Docs — show if no gate or gate = yes */}
             {(!currentSection.gate || gateAnswers[currentSection.gate.itemKey!] === "yes") &&
               currentSection.docs.map((item) => (
-                <DocRow key={item.id} item={item} token={token} borrowerId={borrowerId} submitUpload={submitUpload} textValues={textValues} onTextChange={handleTextChange} />
+                <DocRow key={item.id} item={item} token={token} borrowerId={borrowerId}
+                  submitUpload={submitUpload} textValues={textValues}
+                  onTextChange={(id, v) => setTextValues((p) => ({ ...p, [id]: v }))} />
               ))
             }
 
@@ -183,8 +184,8 @@ export const ApplicationPage = () => {
           </div>
         </div>
 
-        {/* Nav */}
-        <div className="flex items-center justify-between pt-5">
+        {/* Bottom nav */}
+        <div className="px-6 py-4 border-t border-border shrink-0 flex items-center justify-between">
           <button onClick={() => setCurrentStep(Math.max(0, safeStep - 1))} disabled={safeStep === 0}
             className="h-10 px-4 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-30 flex items-center gap-1.5">
             <ArrowLeft className="h-3.5 w-3.5" /> Back
@@ -225,16 +226,12 @@ function DocRow({ item, token, borrowerId, submitUpload, textValues, onTextChang
 
   if (isText) {
     return (
-      <div className="space-y-1.5 px-1">
+      <div className="space-y-1.5">
         <label className="text-sm font-medium">{item.templateItemName}</label>
         {item.templateItemDescription && <p className="text-xs text-muted-foreground">{item.templateItemDescription}</p>}
-        <input
-          type="text"
-          value={textValues[item.id] || ""}
-          onChange={(e) => onTextChange(item.id, e.target.value)}
+        <input type="text" value={textValues[item.id] || ""} onChange={(e) => onTextChange(item.id, e.target.value)}
           placeholder={`Enter ${item.templateItemName.toLowerCase()}...`}
-          className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:ring-1 focus:ring-foreground focus:outline-none transition-colors"
-        />
+          className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:ring-1 focus:ring-foreground focus:outline-none transition-colors" />
       </div>
     );
   }

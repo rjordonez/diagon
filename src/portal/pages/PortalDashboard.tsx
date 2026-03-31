@@ -43,7 +43,7 @@ export const PortalDashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       <div>
         <h1 className="text-xl font-bold tracking-tight">Overview</h1>
         <p className="text-sm text-muted-foreground mt-0.5">Track your loan application progress</p>
