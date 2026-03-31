@@ -11,6 +11,8 @@ import { AuthBorrowerDetail } from "./pages/AuthBorrowerDetail";
 import { AuthMarketingPage } from "./pages/AuthMarketingPage";
 import { AIAgentPage } from "./pages/AIAgentPage";
 import { StorePage } from "./pages/StorePage";
+import { TemplatesPage } from "./pages/TemplatesPage";
+import { TemplateBuilderPage } from "./pages/TemplateBuilderPage";
 import { AuthSettingsPage } from "./pages/AuthSettingsPage";
 import NotFound from "@/demo/pages/NotFound";
 
@@ -23,12 +25,15 @@ const AuthenticatedApp = () => (
       <Sonner />
       <Routes>
         <Route path="/" element={<AuthCRMLayout />}>
-          <Route index element={<AuthDashboard />} />
+          <Route index element={<AuthPipelinePage />} />
           <Route path="pipeline" element={<AuthPipelinePage />} />
           <Route path="borrower/:id" element={<AuthBorrowerDetail />} />
           <Route path="marketing" element={<AuthMarketingPage />} />
           <Route path="ai" element={<AIAgentPage />} />
           <Route path="store" element={<StorePage />} />
+          <Route path="templates" element={<TemplatesPage />} />
+          <Route path="templates/new" element={<TemplateBuilderPage />} />
+          <Route path="templates/:id/edit" element={<TemplateBuilderPage />} />
           <Route path="settings" element={<AuthSettingsPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

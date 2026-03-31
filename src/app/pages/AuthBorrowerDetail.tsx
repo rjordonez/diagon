@@ -6,6 +6,7 @@ import { PIPELINE_STAGES, STAGE_CONFIG } from "@/demo/crm/data/mockData";
 import { LeadTempBadge } from "@/demo/crm/components/LeadTempBadge";
 import { StageBadge } from "@/demo/crm/components/StageBadge";
 import { useBorrowers } from "../hooks/useSupabaseData";
+import { BorrowerDocumentsTab } from "../components/BorrowerDocumentsTab";
 
 const formatCurrency = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
@@ -152,9 +153,7 @@ export const AuthBorrowerDetail = () => {
           </div>
         )}
         {activeTab === "documents" && (
-          <div className="text-center py-8 text-sm text-muted-foreground">
-            No documents uploaded yet.
-          </div>
+          <BorrowerDocumentsTab borrower={borrower} />
         )}
         {activeTab === "verification" && (
           <div className="text-center py-8 text-sm text-muted-foreground">
