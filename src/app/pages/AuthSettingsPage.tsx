@@ -9,7 +9,7 @@ export const AuthSettingsPage = () => {
   const lastName = nameParts.slice(1).join(" ") || "";
 
   return (
-    <div className="max-w-[640px] mx-auto space-y-6">
+    <div className="max-w-[640px] mx-auto space-y-6 p-4 md:p-6">
       <div>
         <h1 className="text-[22px] font-bold text-foreground tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground mt-0.5">Manage your profile and preferences</p>

@@ -29,7 +29,7 @@ export const StorePage = () => {
     : [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-4 md:p-6">
       <div>
         <h1 className="text-xl font-bold tracking-tight">Store</h1>
         <p className="text-sm text-muted-foreground">All conversations and documents across borrowers</p>

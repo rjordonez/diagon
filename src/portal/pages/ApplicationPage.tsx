@@ -85,9 +85,9 @@ export const ApplicationPage = () => {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full min-h-0">
       {/* Left: Section stepper */}
-      <div className="w-56 shrink-0 border-r border-border p-4 hidden md:flex flex-col">
+      <div className="w-56 shrink-0 border-r border-border p-4 hidden md:flex flex-col min-h-0">
         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Sections</p>
         <div className="space-y-0.5 flex-1">
           {sections.map((sec, i) => {

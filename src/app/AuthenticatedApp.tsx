@@ -25,7 +25,8 @@ const AuthenticatedApp = () => (
       <Sonner />
       <Routes>
         <Route path="/" element={<AuthCRMLayout />}>
-          <Route index element={<AuthPipelinePage />} />
+          <Route index element={<AIAgentPage />} />
+          <Route path="leads" element={<AuthPipelinePage />} />
           <Route path="pipeline" element={<AuthPipelinePage />} />
           <Route path="borrower/:id" element={<AuthBorrowerDetail />} />
           <Route path="marketing" element={<AuthMarketingPage />} />

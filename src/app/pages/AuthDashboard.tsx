@@ -20,7 +20,7 @@ export const AuthDashboard = () => {
 
   if (isLoading) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-5 p-4 md:p-6">
         <div>
           <h1 className="text-lg font-bold text-foreground tracking-tight">Dashboard</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Loading...</p>
@@ -31,7 +31,7 @@ export const AuthDashboard = () => {
 
   if (borrowers.length === 0) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-5 p-4 md:p-6">
         <div>
           <h1 className="text-lg font-bold text-foreground tracking-tight">Dashboard</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Welcome, {firstName}. Here's your pipeline summary.</p>
@@ -58,7 +58,7 @@ export const AuthDashboard = () => {
   borrowers.forEach((b) => { byStage[b.stage] = (byStage[b.stage] || 0) + 1; });
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 p-4 md:p-6">
       <div>
         <h1 className="text-lg font-bold text-foreground tracking-tight">Dashboard</h1>
         <p className="text-xs text-muted-foreground mt-0.5">Welcome back, {firstName}. Here's your pipeline summary.</p>

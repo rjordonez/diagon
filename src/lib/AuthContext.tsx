@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       .from("profiles")
       .select("id, full_name, role, company")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
     if (data) {
       setProfile({
         id: data.id,

@@ -29,7 +29,7 @@ export const AuthMarketingPage = () => {
   const [tab, setTab] = useState<Tab>("leads");
 
   return (
-    <div className="max-w-[1200px] mx-auto space-y-4">
+    <div className="max-w-[1200px] mx-auto space-y-4 p-4 md:p-6">
       <div>
         <h1 className="text-[22px] font-bold text-foreground tracking-tight">Lead Distribution</h1>
         <p className="text-sm text-muted-foreground mt-0.5">Manage your incoming leads from Diagon</p>

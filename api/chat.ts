@@ -12,181 +12,91 @@ function getOpenAI() {
   return new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 }
 
-const SYSTEM_PROMPT = `You are an AI assistant for a mortgage Loan Officer (LO). You help the LO communicate with their borrowers via iMessage.
+const SYSTEM_PROMPT = `You are an AI assistant for a mortgage Loan Officer. You have access to all their data — borrowers, pipeline, documents, messages, and templates. Answer any question about their business concisely and accurately.
 
-Your responsibilities:
-- Compose professional, friendly iMessage texts to borrowers on behalf of the LO
-- Request specific documents from borrowers (W2s, pay stubs, bank statements, tax returns, etc.)
-- Follow up on pending items
-- Answer the LO's questions about their borrowers using the data available
-- Report on inbound messages from borrowers
+When asked about a borrower, include relevant details like their loan amount, pipeline stage, contact info, and document status.
+When asked about pipeline stats, summarize counts per stage.
+When asked about messages, summarize the conversation history.
+Keep responses clear and concise. Use bullet points for lists.`;
 
-Guidelines for composing messages:
-- Keep texts concise and professional but warm
-- Use the borrower's first name
-- Be clear about what you're requesting and why
-- Don't use overly formal language — this is a text message, not an email
-- Never reveal that you are an AI — write as if you are the LO
-
-When the LO asks you to text a borrower:
-1. Use the lookup_borrower tool if you need to find the borrower
-2. Compose an appropriate message
-3. Use the send_imessage tool to send it
-4. Confirm to the LO what you sent
-
-When reporting inbound messages, summarize what the borrower said and suggest next steps if appropriate.
-
-Available pipeline stages: new-lead, contacted, application, processing, underwriting, conditional, clear-to-close, closed, on-hold, archived`;
-
-const VALID_STAGES = [
-  "new-lead", "contacted", "application", "processing",
-  "underwriting", "conditional", "clear-to-close", "closed",
-  "on-hold", "archived",
-];
-
-const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
-  {
-    type: "function",
-    function: {
-      name: "send_imessage",
-      description: "Send an iMessage to a borrower. The message will be queued and sent via the iMessage bridge.",
-      parameters: {
-        type: "object",
-        properties: {
-          borrower_id: { type: "string", description: "The UUID of the borrower to message" },
-          message_body: { type: "string", description: "The text message to send" },
-        },
-        required: ["borrower_id", "message_body"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "lookup_borrower",
-      description: "Search for borrowers by name, email, or phone. Returns matching borrower records.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "Search query — a name, email, or phone number" },
-        },
-        required: ["query"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "request_document",
-      description: "Request a specific document from a borrower via iMessage.",
-      parameters: {
-        type: "object",
-        properties: {
-          borrower_id: { type: "string", description: "The UUID of the borrower" },
-          document_type: { type: "string", description: "Type of document (e.g., W2, pay_stub, bank_statement, tax_return)" },
-          custom_message: { type: "string", description: "Optional custom message" },
-        },
-        required: ["borrower_id", "document_type"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "update_pipeline",
-      description: "Update a borrower's pipeline stage.",
-      parameters: {
-        type: "object",
-        properties: {
-          borrower_id: { type: "string", description: "The UUID of the borrower" },
-          new_stage: { type: "string", enum: VALID_STAGES, description: "The new pipeline stage" },
-        },
-        required: ["borrower_id", "new_stage"],
-      },
-    },
-  },
-];
-
-async function buildContext(supabase: ReturnType<typeof getSupabase>, borrowerId: string | null): Promise<string> {
-  if (!borrowerId) return "";
+async function buildFullContext(supabase: ReturnType<typeof getSupabase>, userId: string): Promise<string> {
   let context = "";
 
-  const { data: borrower } = await supabase.from("borrowers").select("*").eq("id", borrowerId).single();
-  if (borrower) {
-    context += `\n\nCurrent borrower context:\n`;
-    context += `Name: ${borrower.first_name} ${borrower.last_name}\n`;
-    context += `Email: ${borrower.email}\nPhone: ${borrower.phone || "N/A"}\n`;
-    context += `Loan Amount: $${Number(borrower.loan_amount).toLocaleString()}\n`;
-    context += `Loan Purpose: ${borrower.loan_purpose || "N/A"}\nProperty: ${borrower.property_address || "N/A"}\n`;
-    context += `Pipeline Stage: ${borrower.stage}\nLead Temperature: ${borrower.lead_temp}\n`;
-    context += `Lead Score: ${borrower.lead_score}/100\nDays in Stage: ${borrower.days_in_stage}\n`;
-    context += `Notes: ${borrower.notes || "None"}\n`;
+  // All borrowers
+  const { data: borrowers } = await supabase
+    .from("borrowers")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (borrowers && borrowers.length > 0) {
+    context += `\n\n--- BORROWERS (${borrowers.length} total) ---`;
+    for (const b of borrowers) {
+      context += `\n${b.first_name} ${b.last_name} | ${b.email} | ${b.phone || "no phone"} | Stage: ${b.stage} | Loan: $${Number(b.loan_amount).toLocaleString()} ${b.loan_purpose || ""} | Score: ${b.lead_score}/100 | Temp: ${b.lead_temp} | Docs: ${b.docs_received}/${b.docs_requested} | Notes: ${b.notes || "none"}`;
+    }
+
+    // Pipeline summary
+    const stages: Record<string, number> = {};
+    for (const b of borrowers) { stages[b.stage] = (stages[b.stage] || 0) + 1; }
+    context += `\n\n--- PIPELINE SUMMARY ---`;
+    for (const [stage, count] of Object.entries(stages)) {
+      context += `\n${stage}: ${count}`;
+    }
+    context += `\nTotal volume: $${borrowers.reduce((s, b) => s + Number(b.loan_amount), 0).toLocaleString()}`;
   }
 
-  const { data: messages } = await supabase.from("messages").select("direction, body, status, created_at")
-    .eq("borrower_id", borrowerId).order("created_at", { ascending: false }).limit(10);
+  // Recent messages (last 50)
+  const { data: messages } = await supabase
+    .from("messages")
+    .select("*, borrowers(first_name, last_name)")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
   if (messages && messages.length > 0) {
-    context += `\nRecent iMessage history (newest first):\n`;
+    context += `\n\n--- RECENT MESSAGES (${messages.length}) ---`;
     for (const m of messages) {
-      const dir = m.direction === "outbound" ? "LO →" : "Borrower →";
-      context += `  ${dir} "${m.body}" (${m.status}, ${m.created_at})\n`;
+      const name = (m as any).borrowers ? `${(m as any).borrowers.first_name} ${(m as any).borrowers.last_name}` : "Unknown";
+      const dir = m.direction === "outbound" ? "→" : "←";
+      context += `\n${dir} ${name}: "${m.body}" (${m.status}, ${new Date(m.created_at).toLocaleDateString()})`;
     }
   }
+
+  // Upload links and document status
+  const { data: links } = await supabase
+    .from("upload_links")
+    .select("*, borrowers(first_name, last_name), document_templates(name), upload_items(status, template_items(name))")
+    .eq("user_id", userId);
+
+  if (links && links.length > 0) {
+    context += `\n\n--- DOCUMENT UPLOAD STATUS ---`;
+    for (const link of links) {
+      const bName = (link as any).borrowers ? `${(link as any).borrowers.first_name} ${(link as any).borrowers.last_name}` : "Unknown";
+      const tName = (link as any).document_templates?.name || "Unknown template";
+      const items = (link as any).upload_items || [];
+      const uploaded = items.filter((i: any) => i.status !== "pending").length;
+      context += `\n${bName} (${tName}): ${uploaded}/${items.length} docs uploaded`;
+      const pending = items.filter((i: any) => i.status === "pending");
+      if (pending.length > 0) {
+        context += ` — Still needed: ${pending.slice(0, 5).map((i: any) => i.template_items?.name || "?").join(", ")}`;
+      }
+    }
+  }
+
+  // Templates
+  const { data: templates } = await supabase
+    .from("document_templates")
+    .select("name, borrower_type, is_addon, template_items(id)")
+    .eq("user_id", userId);
+
+  if (templates && templates.length > 0) {
+    context += `\n\n--- TEMPLATES ---`;
+    for (const t of templates) {
+      context += `\n${t.name} (${t.borrower_type || "General"})${t.is_addon ? " [add-on]" : ""} — ${(t as any).template_items?.length || 0} items`;
+    }
+  }
+
   return context;
-}
-
-async function executeTool(name: string, args: any, supabase: ReturnType<typeof getSupabase>, userId: string): Promise<string> {
-  if (name === "send_imessage") {
-    const { data: borrower, error: bErr } = await supabase.from("borrowers")
-      .select("id, user_id, first_name, last_name, phone").eq("id", args.borrower_id).single();
-    if (bErr || !borrower) return JSON.stringify({ error: "Borrower not found" });
-    if (!borrower.phone) return JSON.stringify({ error: `${borrower.first_name} ${borrower.last_name} has no phone number` });
-    const { error } = await supabase.from("messages").insert({
-      user_id: borrower.user_id, borrower_id: borrower.id,
-      direction: "outbound", recipient: borrower.phone, body: args.message_body, status: "queued",
-    });
-    if (error) return JSON.stringify({ error: error.message });
-    return JSON.stringify({ success: true, recipient: `${borrower.first_name} ${borrower.last_name}`, message: args.message_body });
-  }
-
-  if (name === "lookup_borrower") {
-    const q = args.query.toLowerCase().trim();
-    const { data: borrowers } = await supabase.from("borrowers").select("*").eq("user_id", userId);
-    const matches = (borrowers || []).filter((b: any) => {
-      const full = `${b.first_name} ${b.last_name}`.toLowerCase();
-      const email = (b.email || "").toLowerCase();
-      const phone = (b.phone || "").replace(/\D/g, "");
-      const qd = q.replace(/\D/g, "");
-      return full.includes(q) || email.includes(q) || (qd.length >= 4 && phone.includes(qd));
-    });
-    return JSON.stringify({ results: matches.map((b: any) => ({
-      id: b.id, name: `${b.first_name} ${b.last_name}`, email: b.email, phone: b.phone,
-      loan_amount: b.loan_amount, loan_purpose: b.loan_purpose, stage: b.stage,
-    }))});
-  }
-
-  if (name === "request_document") {
-    const { data: borrower, error: bErr } = await supabase.from("borrowers")
-      .select("id, user_id, first_name, last_name, phone").eq("id", args.borrower_id).single();
-    if (bErr || !borrower) return JSON.stringify({ error: "Borrower not found" });
-    if (!borrower.phone) return JSON.stringify({ error: "No phone number" });
-    const message = args.custom_message || `Hi ${borrower.first_name}, I hope you're doing well! We need your ${args.document_type.replace(/_/g, " ")} to keep your loan moving. Could you send that over? Let me know if you have questions!`;
-    await supabase.from("messages").insert({
-      user_id: borrower.user_id, borrower_id: borrower.id,
-      direction: "outbound", recipient: borrower.phone, body: message, status: "queued",
-    });
-    return JSON.stringify({ success: true, recipient: `${borrower.first_name} ${borrower.last_name}`, message_sent: message });
-  }
-
-  if (name === "update_pipeline") {
-    const { data: borrower } = await supabase.from("borrowers").select("id, first_name, last_name, stage")
-      .eq("id", args.borrower_id).single();
-    if (!borrower) return JSON.stringify({ error: "Borrower not found" });
-    await supabase.from("borrowers").update({ stage: args.new_stage, days_in_stage: 0 }).eq("id", args.borrower_id);
-    return JSON.stringify({ success: true, borrower: `${borrower.first_name} ${borrower.last_name}`, old_stage: borrower.stage, new_stage: args.new_stage });
-  }
-
-  return JSON.stringify({ error: `Unknown tool: ${name}` });
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -195,22 +105,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabase = getSupabase();
   const ai = getOpenAI();
 
-  // Auth
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) return res.status(401).json({ error: "Missing auth token" });
   const token = authHeader.slice(7);
   const { data: { user }, error: authError } = await supabase.auth.getUser(token);
   if (authError || !user) return res.status(401).json({ error: "Invalid auth token" });
 
-  const userId = user.id;
-  const { messages: uiMessages, conversationId, borrowerId } = req.body;
+  const { messages: uiMessages, conversationId } = req.body;
 
-  // Build context
-  const borrowerContext = await buildContext(supabase, borrowerId || null);
+  const fullContext = await buildFullContext(supabase, user.id);
 
-  // Convert UI messages to OpenAI format
   const openaiMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: "system", content: SYSTEM_PROMPT + borrowerContext },
+    { role: "system", content: SYSTEM_PROMPT + fullContext },
   ];
   for (const msg of uiMessages || []) {
     if (msg.role === "user") {
@@ -222,59 +128,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // Tool calling loop
-  const MAX_STEPS = 5;
-  let finalText = "";
+  // Stream response
+  const stream = await ai.chat.completions.create({
+    model: "gpt-4o",
+    messages: openaiMessages,
+    stream: true,
+  });
 
-  for (let step = 0; step < MAX_STEPS; step++) {
-    const completion = await ai.chat.completions.create({
-      model: "gpt-4o",
-      messages: openaiMessages,
-      tools: TOOLS,
-      stream: false,
-    });
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
 
-    const choice = completion.choices[0];
-    const message = choice.message;
-
-    if (message.tool_calls && message.tool_calls.length > 0) {
-      openaiMessages.push(message);
-      for (const tc of message.tool_calls) {
-        const args = JSON.parse(tc.function.arguments);
-        const result = await executeTool(tc.function.name, args, supabase, userId);
-        openaiMessages.push({ role: "tool", tool_call_id: tc.id, content: result });
-      }
-      continue;
+  let fullText = "";
+  for await (const chunk of stream) {
+    const content = chunk.choices[0]?.delta?.content;
+    if (content) {
+      fullText += content;
+      res.write(`data: ${JSON.stringify({ type: "text", text: content })}\n\n`);
     }
-
-    finalText = message.content || "";
-    break;
   }
 
-  // Save to DB
+  // Save messages to DB
   if (conversationId) {
-    const lastUser = uiMessages?.[uiMessages.length - 1];
-    if (lastUser?.role === "user") {
-      const userText = lastUser.parts?.filter((p: any) => p.type === "text").map((p: any) => p.text).join("") || "";
+    const lastUserMsg = uiMessages[uiMessages.length - 1];
+    if (lastUserMsg?.role === "user") {
+      const userText = lastUserMsg.parts?.filter((p: any) => p.type === "text").map((p: any) => p.text).join("") || lastUserMsg.content || "";
       if (userText) {
         await supabase.from("ai_messages").insert({
-          conversation_id: conversationId, user_id: userId, role: "user", content: userText, status: "complete",
+          conversation_id: conversationId, user_id: user.id, role: "user", content: userText, status: "complete",
         });
       }
     }
-    if (finalText) {
+    if (fullText) {
       await supabase.from("ai_messages").insert({
-        conversation_id: conversationId, user_id: userId, role: "assistant", content: finalText, status: "complete",
+        conversation_id: conversationId, user_id: user.id, role: "assistant", content: fullText, status: "complete",
       });
     }
     await supabase.from("ai_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
   }
 
-  // Return as a simple JSON response (no streaming for now — we'll add it once this works)
-  res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify({
-    id: crypto.randomUUID(),
-    role: "assistant",
-    parts: [{ type: "text", text: finalText }],
-  }));
+  res.write(`data: ${JSON.stringify({ type: "done", id: crypto.randomUUID(), text: fullText })}\n\n`);
+  res.end();
 }

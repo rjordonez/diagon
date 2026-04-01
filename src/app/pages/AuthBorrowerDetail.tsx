@@ -16,9 +16,6 @@ const TABS = [
   { id: "application", label: "Application", icon: FileText },
   { id: "documents", label: "Documents", icon: FileText },
   { id: "verification", label: "AI Verification", icon: Shield },
-  { id: "credit", label: "Credit & Financials", icon: CreditCard },
-  { id: "activity", label: "Activity", icon: MessageSquare },
-  { id: "speed-to-lead", label: "Speed to Lead", icon: Zap },
 ];
 
 export const AuthBorrowerDetail = () => {
@@ -29,7 +26,7 @@ export const AuthBorrowerDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="max-w-[1200px] mx-auto">
+      <div className="max-w-[1200px] mx-auto p-4 md:p-6">
         <Link to="/app/pipeline" className="text-sm text-muted-foreground flex items-center gap-1 mb-4"><ArrowLeft className="h-4 w-4" /> Back to Pipeline</Link>
         <p className="text-muted-foreground">Loading...</p>
       </div>
@@ -38,7 +35,7 @@ export const AuthBorrowerDetail = () => {
 
   if (!borrower) {
     return (
-      <div className="max-w-[1200px] mx-auto">
+      <div className="max-w-[1200px] mx-auto p-4 md:p-6">
         <Link to="/app/pipeline" className="text-sm text-foreground flex items-center gap-1 mb-4"><ArrowLeft className="h-4 w-4" /> Back to Pipeline</Link>
         <p className="text-muted-foreground">Borrower not found.</p>
       </div>

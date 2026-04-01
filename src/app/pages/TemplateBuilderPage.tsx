@@ -107,7 +107,7 @@ export const TemplateBuilderPage = () => {
   };
 
   return (
-    <div className="max-w-[640px] mx-auto pb-8">
+    <div className="max-w-[640px] mx-auto pb-8 p-4 md:p-6">
       <Link to="/app/templates" className="text-xs text-muted-foreground flex items-center gap-1 mb-6 hover:text-foreground">
         <ArrowLeft className="h-3 w-3" /> Templates
       </Link>
