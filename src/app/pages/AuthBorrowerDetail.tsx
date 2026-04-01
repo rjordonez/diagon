@@ -1,43 +1,71 @@
 import React, { useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Mail, Phone, MapPin, FileText, Shield, CreditCard, MessageSquare, Zap, Check, AlertTriangle } from "lucide-react";
-import { cn } from "@/demo/lib/utils";
+import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, Mail, Phone, MapPin, FileText, Shield, Copy, Check, ExternalLink } from "lucide-react";
 import { PIPELINE_STAGES, STAGE_CONFIG } from "@/demo/crm/data/mockData";
-import { LeadTempBadge } from "@/demo/crm/components/LeadTempBadge";
-import { StageBadge } from "@/demo/crm/components/StageBadge";
 import { useBorrowers } from "../hooks/useSupabaseData";
+import { supabase } from "@/lib/supabase";
+import { useQueryClient } from "@tanstack/react-query";
 import { BorrowerDocumentsTab } from "../components/BorrowerDocumentsTab";
 
-const formatCurrency = (n: number) =>
+const fmt = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
 
+const TEMP_COLORS: Record<string, { bg: string; text: string; label: string }> = {
+  hot: { bg: "#fef2f2", text: "#ef4444", label: "Hot" },
+  warm: { bg: "#fffbeb", text: "#d97706", label: "Warm" },
+  cold: { bg: "#eff6ff", text: "#3b82f6", label: "Cold" },
+};
+
 const TABS = [
-  { id: "overview", label: "Overview", icon: FileText },
-  { id: "application", label: "Application", icon: FileText },
-  { id: "documents", label: "Documents", icon: FileText },
-  { id: "verification", label: "AI Verification", icon: Shield },
+  { id: "overview", label: "Overview" },
+  { id: "application", label: "Application" },
+  { id: "documents", label: "Documents" },
+  { id: "verification", label: "AI Verification" },
 ];
 
 export const AuthBorrowerDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: borrowers = [], isLoading } = useBorrowers();
   const borrower = borrowers.find((b) => b.id === id);
   const [activeTab, setActiveTab] = useState("overview");
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [notes, setNotes] = useState<string | null>(null);
+  const [savingNotes, setSavingNotes] = useState(false);
+
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const saveNotes = async (value: string) => {
+    if (!borrower) return;
+    setSavingNotes(true);
+    await supabase.from("borrowers").update({ notes: value }).eq("id", borrower.id);
+    queryClient.invalidateQueries({ queryKey: ["borrowers"] });
+    setSavingNotes(false);
+  };
 
   if (isLoading) {
     return (
-      <div className="max-w-[1200px] mx-auto p-4 md:p-6">
-        <Link to="/app/pipeline" className="text-sm text-muted-foreground flex items-center gap-1 mb-4"><ArrowLeft className="h-4 w-4" /> Back to Pipeline</Link>
-        <p className="text-muted-foreground">Loading...</p>
+      <div style={{ padding: 32 }}>
+        <button onClick={() => navigate("/app/leads")} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#6b7280", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+          <ArrowLeft style={{ width: 14, height: 14 }} /> Back to Leads
+        </button>
+        <p style={{ marginTop: 24, color: "#9ca3af", fontSize: 14 }}>Loading...</p>
       </div>
     );
   }
 
   if (!borrower) {
     return (
-      <div className="max-w-[1200px] mx-auto p-4 md:p-6">
-        <Link to="/app/pipeline" className="text-sm text-foreground flex items-center gap-1 mb-4"><ArrowLeft className="h-4 w-4" /> Back to Pipeline</Link>
-        <p className="text-muted-foreground">Borrower not found.</p>
+      <div style={{ padding: 32 }}>
+        <button onClick={() => navigate("/app/leads")} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#6b7280", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+          <ArrowLeft style={{ width: 14, height: 14 }} /> Back to Leads
+        </button>
+        <p style={{ marginTop: 24, color: "#9ca3af", fontSize: 14 }}>Borrower not found.</p>
       </div>
     );
   }
@@ -46,143 +74,204 @@ export const AuthBorrowerDetail = () => {
     ? `${borrower.firstName} & ${borrower.coFirstName} ${borrower.lastName}`
     : `${borrower.firstName} ${borrower.lastName}`;
 
+  const temp = TEMP_COLORS[borrower.leadTemp] || TEMP_COLORS.warm;
   const currentStageIdx = PIPELINE_STAGES.indexOf(borrower.stage);
+  const stageConfig = STAGE_CONFIG[borrower.stage];
+  const notesValue = notes ?? borrower.notes;
+
+  const infoRow = (label: string, value: string, copyable?: boolean) => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
+      <span style={{ fontSize: 13, color: "#6b7280" }}>{label}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <span style={{ fontSize: 13, color: "#111", fontWeight: 500 }}>{value}</span>
+        {copyable && (
+          <button
+            onClick={() => copyToClipboard(value, label)}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: copiedField === label ? "#22c55e" : "#9ca3af", display: "flex" }}
+          >
+            {copiedField === label ? <Check style={{ width: 12, height: 12 }} /> : <Copy style={{ width: 12, height: 12 }} />}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="max-w-[1200px] mx-auto space-y-4 md:space-y-6">
-      <Link to="/app/pipeline" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
-        <ArrowLeft className="h-4 w-4" /> Back to Pipeline
-      </Link>
+    <div style={{ height: "100%", overflow: "auto", background: "#fafafa" }}>
+      {/* Top bar */}
+      <div style={{ height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", borderBottom: "1px solid #e5e7eb", background: "white", position: "sticky", top: 0, zIndex: 10 }}>
+        <button onClick={() => navigate("/app/leads")} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#6b7280", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#111")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#6b7280")}>
+          <ArrowLeft style={{ width: 14, height: 14 }} /> Back to Leads
+        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 13, color: "#9ca3af" }}>Lead</span>
+          <span style={{ fontSize: 13, color: "#d1d5db" }}>/</span>
+          <span style={{ fontSize: 13, color: "#111", fontWeight: 500 }}>{borrower.firstName} {borrower.lastName}</span>
+        </div>
+      </div>
 
-      {/* Header */}
-      <div className="bg-background rounded-lg border border-border p-4 md:p-6">
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-full bg-foreground/10 text-foreground text-lg font-bold flex items-center justify-center shrink-0">
-              {borrower.firstName[0]}{borrower.lastName[0]}
+      <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 24px 48px" }}>
+        {/* Profile header card */}
+        <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 24, marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+            {/* Left: avatar + info */}
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: "50%", background: "#f3f4f6",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 18, fontWeight: 700, color: "#374151", flexShrink: 0,
+              }}>
+                {borrower.firstName[0]}{borrower.lastName[0]}
+              </div>
+              <div>
+                <h1 style={{ fontSize: 20, fontWeight: 700, color: "#111", margin: 0, lineHeight: 1.3 }}>{name}</h1>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                  {/* Temp badge */}
+                  <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, padding: "2px 8px", borderRadius: 4, background: temp.bg, color: temp.text }}>
+                    {temp.label}
+                  </span>
+                  {/* Stage badge */}
+                  <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, padding: "2px 8px", borderRadius: 4, background: "#f3f4f6", color: "#374151" }}>
+                    {stageConfig.label}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#6b7280" }}>
+                    <Mail style={{ width: 12, height: 12 }} /> {borrower.email}
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#6b7280" }}>
+                    <Phone style={{ width: 12, height: 12 }} /> {borrower.phone}
+                  </span>
+                  {borrower.propertyAddress && (
+                    <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#6b7280" }}>
+                      <MapPin style={{ width: 12, height: 12 }} /> {borrower.propertyAddress}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-lg md:text-xl font-bold text-foreground tracking-tight">{name}</h1>
-                <LeadTempBadge temp={borrower.leadTemp} />
-                <StageBadge stage={borrower.stage} />
-              </div>
-              <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{borrower.email}</span>
-                <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{borrower.phone}</span>
-                {borrower.propertyAddress && <span className="hidden md:flex items-center gap-1"><MapPin className="h-3 w-3" />{borrower.propertyAddress}</span>}
-              </div>
+
+            {/* Right: loan amount */}
+            <div style={{ textAlign: "right" }}>
+              <p style={{ fontSize: 24, fontWeight: 700, color: "#111", margin: 0, fontVariantNumeric: "tabular-nums" }}>{fmt(borrower.loanAmount)}</p>
+              <p style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{borrower.loanPurpose}</p>
             </div>
           </div>
-          <div className="text-left md:text-right shrink-0">
-            <p className="text-xl font-bold text-foreground tracking-tight">{formatCurrency(borrower.loanAmount)}</p>
-            <p className="text-xs text-muted-foreground">{borrower.loanPurpose}</p>
+
+          {/* Stage progress bar */}
+          <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 2 }}>
+            {PIPELINE_STAGES.slice(0, 8).map((stage, i) => {
+              const isCompleted = i < currentStageIdx;
+              const isCurrent = i === currentStageIdx;
+              return (
+                <React.Fragment key={stage}>
+                  <div style={{
+                    width: 10, height: 10, borderRadius: "50%", flexShrink: 0,
+                    background: isCompleted || isCurrent ? "#111" : "#e5e7eb",
+                    border: isCurrent ? "2px solid #111" : "none",
+                    boxShadow: isCurrent ? "0 0 0 3px rgba(0,0,0,0.08)" : "none",
+                  }} />
+                  {i < 7 && (
+                    <div style={{ height: 2, flex: 1, background: isCompleted ? "#111" : "#e5e7eb", borderRadius: 1 }} />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+            {PIPELINE_STAGES.slice(0, 8).map((stage) => (
+              <span key={stage} style={{ fontSize: 9, color: "#9ca3af", textAlign: "center", width: 60 }}>{STAGE_CONFIG[stage].label}</span>
+            ))}
           </div>
         </div>
 
-        {/* Stage Progress */}
-        <div className="mt-6 hidden md:flex items-center gap-1">
-          {PIPELINE_STAGES.slice(0, 8).map((stage, i) => {
-            const isCompleted = i < currentStageIdx;
-            const isCurrent = i === currentStageIdx;
-            return (
-              <React.Fragment key={stage}>
-                <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", isCompleted || isCurrent ? "bg-foreground" : "bg-border")} />
-                {i < 7 && <div className={cn("h-0.5 flex-1", isCompleted ? "bg-foreground" : "bg-border")} />}
-              </React.Fragment>
-            );
-          })}
-        </div>
-        <div className="hidden md:flex justify-between mt-1.5">
-          {PIPELINE_STAGES.slice(0, 8).map((stage) => (
-            <span key={stage} className="text-[9px] text-muted-foreground">{STAGE_CONFIG[stage].label}</span>
+        {/* Tabs */}
+        <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #e5e7eb", marginBottom: 20 }}>
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                padding: "10px 16px", fontSize: 13, fontWeight: activeTab === tab.id ? 600 : 400,
+                color: activeTab === tab.id ? "#111" : "#6b7280",
+                background: "none", border: "none", cursor: "pointer",
+                borderBottom: activeTab === tab.id ? "2px solid #111" : "2px solid transparent",
+                marginBottom: -1, transition: "color 0.15s",
+              }}
+              onMouseEnter={(e) => { if (activeTab !== tab.id) e.currentTarget.style.color = "#111"; }}
+              onMouseLeave={(e) => { if (activeTab !== tab.id) e.currentTarget.style.color = "#6b7280"; }}
+            >
+              {tab.label}
+            </button>
           ))}
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-border overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              "px-3 md:px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap shrink-0",
-              activeTab === tab.id ? "text-foreground border-foreground" : "text-muted-foreground border-transparent hover:text-foreground"
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab Content */}
-      <div className="bg-background rounded-lg border border-border p-4 md:p-6">
+        {/* Tab content */}
         {activeTab === "overview" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <h3 className="text-base font-semibold">Contact Information</h3>
-              <div className="space-y-2 text-sm">
-                <p><span className="text-muted-foreground">Email:</span> {borrower.email}</p>
-                <p><span className="text-muted-foreground">Phone:</span> {borrower.phone}</p>
-                <p><span className="text-muted-foreground">Lead Source:</span> {borrower.leadSource}</p>
-                <p><span className="text-muted-foreground">Created:</span> {borrower.createdAt}</p>
-              </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+            {/* Contact info */}
+            <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 20 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: "#111", margin: "0 0 4px" }}>Contact Information</h3>
+              {infoRow("Email", borrower.email, true)}
+              {infoRow("Phone", borrower.phone, true)}
+              {infoRow("Lead Source", borrower.leadSource)}
+              {infoRow("Created", borrower.createdAt)}
+              {borrower.propertyAddress && infoRow("Property", borrower.propertyAddress, true)}
             </div>
-            <div className="space-y-4">
-              <h3 className="text-base font-semibold">Loan Summary</h3>
-              <div className="space-y-2 text-sm">
-                <p><span className="text-muted-foreground">Amount:</span> {formatCurrency(borrower.loanAmount)}</p>
-                <p><span className="text-muted-foreground">Purpose:</span> {borrower.loanPurpose}</p>
-                <p><span className="text-muted-foreground">Lead Score:</span> {borrower.leadScore}/100</p>
-                <p><span className="text-muted-foreground">Days in Stage:</span> {borrower.daysInStage}</p>
-              </div>
+
+            {/* Loan summary */}
+            <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 20 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: "#111", margin: "0 0 4px" }}>Loan Summary</h3>
+              {infoRow("Amount", fmt(borrower.loanAmount))}
+              {infoRow("Purpose", borrower.loanPurpose)}
+              {infoRow("Lead Score", `${borrower.leadScore} / 100`)}
+              {infoRow("Days in Stage", String(borrower.daysInStage))}
+              {infoRow("Assigned LO", borrower.assignedLO || "Unassigned")}
             </div>
-            <div className="md:col-span-2">
-              <h3 className="text-base font-semibold mb-2">Notes</h3>
-              <p className="text-sm text-muted-foreground">{borrower.notes || "No notes yet."}</p>
+
+            {/* Notes - full width */}
+            <div style={{ gridColumn: "1 / -1", background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 600, color: "#111", margin: 0 }}>Notes</h3>
+                {savingNotes && <span style={{ fontSize: 11, color: "#9ca3af" }}>Saving...</span>}
+              </div>
+              <textarea
+                value={notesValue || ""}
+                onChange={(e) => setNotes(e.target.value)}
+                onBlur={() => { if (notes !== null && notes !== borrower.notes) saveNotes(notes); }}
+                placeholder="Add notes about this lead..."
+                style={{
+                  width: "100%", minHeight: 80, padding: 12, borderRadius: 8,
+                  border: "1px solid #e5e7eb", fontSize: 13, color: "#374151",
+                  resize: "vertical", outline: "none", fontFamily: "inherit", lineHeight: 1.5,
+                  background: "#fafafa",
+                }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "#111")}
+                onBlurCapture={(e) => (e.currentTarget.style.borderColor = "#e5e7eb")}
+              />
             </div>
           </div>
         )}
+
         {activeTab === "application" && (
-          <div className="text-center py-8 text-sm text-muted-foreground">
-            Application data will appear once the borrower starts their application.
+          <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 40, textAlign: "center" }}>
+            <FileText style={{ width: 32, height: 32, color: "#d1d5db", margin: "0 auto 12px" }} />
+            <p style={{ fontSize: 14, color: "#6b7280" }}>Application data will appear once the borrower starts their application.</p>
           </div>
         )}
+
         {activeTab === "documents" && (
-          <BorrowerDocumentsTab borrower={borrower} />
+          <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 20 }}>
+            <BorrowerDocumentsTab borrower={borrower} />
+          </div>
         )}
+
         {activeTab === "verification" && (
-          <div className="text-center py-8 text-sm text-muted-foreground">
-            AI verification will run once documents are uploaded.
-          </div>
-        )}
-        {activeTab === "credit" && (
-          <div className="text-center py-8 text-sm text-muted-foreground">
-            Credit and financial data will appear once linked.
-          </div>
-        )}
-        {activeTab === "activity" && (
-          <div className="text-center py-8 text-sm text-muted-foreground">
-            No activity yet. Use the <a href="/app/ai" className="text-foreground underline">AI Agent</a> to communicate with this borrower.
-          </div>
-        )}
-        {activeTab === "speed-to-lead" && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold">Follow-up Sequence</h3>
-              <span className={cn(
-                "text-xs font-bold uppercase px-2 py-0.5 rounded",
-                borrower.speedToLeadEnabled ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
-              )}>
-                {borrower.speedToLeadEnabled ? "Active" : "Inactive"}
-              </span>
-            </div>
-            {borrower.speedToLeadEnabled ? (
-              <p className="text-sm text-muted-foreground">Speed to Lead sequence is active for this borrower.</p>
-            ) : (
-              <p className="text-sm text-muted-foreground">Speed to Lead is not enabled for this borrower.</p>
-            )}
+          <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 40, textAlign: "center" }}>
+            <Shield style={{ width: 32, height: 32, color: "#d1d5db", margin: "0 auto 12px" }} />
+            <p style={{ fontSize: 14, color: "#6b7280" }}>AI verification will run once documents are uploaded.</p>
           </div>
         )}
       </div>

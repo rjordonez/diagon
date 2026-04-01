@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { ArrowUp, Square, Plus, Clock, Trash2, Copy, ThumbsUp, ThumbsDown, RefreshCw, Loader2, Home, HelpCircle, Star } from "lucide-react";
+import { ArrowUp, Square, Plus, Clock, Trash2, Copy, ThumbsUp, ThumbsDown, RefreshCw, Loader2, Home, HelpCircle, Star, Zap, ChevronRight, Users } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthContext";
+import { useBorrowers } from "../hooks/useSupabaseData";
 import { getAuthToken } from "../hooks/useAIData";
 
 interface ChatMessage { id: string; role: "user" | "assistant"; content: string; }
@@ -185,36 +186,7 @@ export const AIAgentPage = () => {
 
   // ── HOME ──
   if (!convIdFromUrl) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-        {/* Top bar */}
-        <div style={{ height: 56, flexShrink: 0, borderBottom: "1px solid #d9d9d9", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#6b7280" }}>
-            <Home style={{ width: 16, height: 16 }} /> Home
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#6b7280" }}>
-            <HelpCircle style={{ width: 16, height: 16 }} /> Help
-          </div>
-        </div>
-
-        {/* Centered content */}
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ width: "100%", maxWidth: 640, padding: "0 24px" }}>
-            <h1 style={{ fontSize: 28, fontWeight: 600, marginBottom: 16, color: "#111" }}>{getGreeting(userName)}</h1>
-
-            {recentChat && (
-              <button onClick={() => navigate(`/app/ai?c=${recentChat.id}`)}
-                style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#6b7280", background: "none", border: "none", cursor: "pointer", marginBottom: 16, padding: 0 }}>
-                <Clock style={{ width: 16, height: 16 }} />
-                <span>Recent chat · <span style={{ fontWeight: 500, color: "#111" }}>{recentChat.title}</span></span>
-              </button>
-            )}
-
-            <ChatInput value={input} onChange={setInput} onSend={handleSend} isLoading={isLoading} rows={4} />
-          </div>
-        </div>
-      </div>
-    );
+    return <HomeView userName={userName} recentChat={recentChat} input={input} setInput={setInput} handleSend={handleSend} isLoading={isLoading} navigate={navigate} />;
   }
 
   // ── CHAT ──
@@ -297,3 +269,148 @@ export const AIAgentPage = () => {
     </div>
   );
 };
+
+// ── Home View ──
+const STAGE_LABELS: Record<string, string> = {
+  "new-lead": "New Lead", contacted: "Contacted", "app-sent": "App Sent", "app-in-progress": "In Progress",
+  "app-submitted": "Submitted", "in-review": "In Review", "conditionally-approved": "Cond. Approved",
+  "clear-to-close": "Clear to Close", closed: "Closed", "on-hold": "On Hold", dead: "Dead",
+};
+const TEMP_DOT: Record<string, string> = { hot: "#ef4444", warm: "#f59e0b", cold: "#3b82f6" };
+
+const MOCK_AUTOMATIONS = [
+  { id: "a1", label: "Follow up with new leads", time: "Daily, 9:00 AM", active: true },
+  { id: "a2", label: "Send doc reminder to stalled apps", time: "Every 3 days", active: true },
+  { id: "a3", label: "Re-engage cold leads", time: "Weekly, Monday", active: false },
+];
+
+function HomeView({ userName, recentChat, input, setInput, handleSend, isLoading, navigate }: {
+  userName: string; recentChat: { id: string; title: string } | null;
+  input: string; setInput: (v: string) => void; handleSend: () => void;
+  isLoading: boolean; navigate: (path: string) => void;
+}) {
+  const { data: borrowers = [] } = useBorrowers();
+  const recentLeads = borrowers.slice(0, 5);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+      {/* Top bar */}
+      <div style={{ height: 56, flexShrink: 0, borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", background: "white" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#6b7280" }}>
+          <Home style={{ width: 16, height: 16 }} /> Home
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#6b7280" }}>
+          <HelpCircle style={{ width: 16, height: 16 }} /> Help
+        </div>
+      </div>
+
+      {/* Scrollable content */}
+      <div style={{ flex: 1, overflow: "auto", background: "#fafafa" }}>
+        <div style={{ maxWidth: 680, margin: "0 auto", padding: "40px 24px 48px" }}>
+          {/* Greeting */}
+          <h1 style={{ fontSize: 28, fontWeight: 600, marginBottom: 16, color: "#111" }}>{getGreeting(userName)}</h1>
+
+          {recentChat && (
+            <button onClick={() => navigate(`/app/ai?c=${recentChat.id}`)}
+              style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#6b7280", background: "none", border: "none", cursor: "pointer", marginBottom: 16, padding: 0 }}>
+              <Clock style={{ width: 16, height: 16 }} />
+              <span>Recent chat · <span style={{ fontWeight: 500, color: "#111" }}>{recentChat.title}</span></span>
+            </button>
+          )}
+
+          {/* Chat input */}
+          <ChatInput value={input} onChange={setInput} onSend={handleSend} isLoading={isLoading} rows={4} />
+
+          {/* Upcoming Automations */}
+          <div style={{ marginTop: 36 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 600, color: "#111", margin: 0 }}>Upcoming Automations</h2>
+              <span style={{ fontSize: 12, color: "#9ca3af" }}>Today, {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+            </div>
+            <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+              {MOCK_AUTOMATIONS.map((auto, i) => (
+                <div key={auto.id} style={{
+                  display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
+                  borderBottom: i < MOCK_AUTOMATIONS.length - 1 ? "1px solid #f3f4f6" : "none",
+                  cursor: "pointer", transition: "background 0.1s",
+                }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
+                >
+                  <div style={{
+                    width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
+                    background: auto.active ? "#22c55e" : "#d1d5db",
+                  }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: auto.active ? "#111" : "#9ca3af" }}>{auto.label}</p>
+                  </div>
+                  <span style={{ fontSize: 12, color: "#9ca3af", flexShrink: 0 }}>{auto.time}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent Leads */}
+          <div style={{ marginTop: 28 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <h2 style={{ fontSize: 15, fontWeight: 600, color: "#111", margin: 0 }}>Recent Leads</h2>
+                <span style={{ fontSize: 11, fontWeight: 500, color: "#9ca3af", background: "#f3f4f6", padding: "1px 6px", borderRadius: 4 }}>{borrowers.length}</span>
+              </div>
+              <button onClick={() => navigate("/app/leads")}
+                style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#6b7280", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#111")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "#6b7280")}
+              >
+                View all <ChevronRight style={{ width: 12, height: 12 }} />
+              </button>
+            </div>
+            <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+              {recentLeads.length === 0 ? (
+                <div style={{ padding: 32, textAlign: "center" }}>
+                  <Users style={{ width: 24, height: 24, color: "#d1d5db", margin: "0 auto 8px" }} />
+                  <p style={{ fontSize: 13, color: "#9ca3af" }}>No leads yet</p>
+                </div>
+              ) : (
+                recentLeads.map((b, i) => (
+                  <div key={b.id}
+                    onClick={() => navigate(`/app/borrower/${b.id}`)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 12, padding: "10px 16px",
+                      borderBottom: i < recentLeads.length - 1 ? "1px solid #f3f4f6" : "none",
+                      cursor: "pointer", transition: "background 0.1s",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
+                  >
+                    <div style={{
+                      width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
+                      background: TEMP_DOT[b.leadTemp] || "#d1d5db",
+                    }} />
+                    <div style={{
+                      width: 28, height: 28, borderRadius: "50%", background: "#f3f4f6",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 10, fontWeight: 600, color: "#374151", flexShrink: 0,
+                    }}>
+                      {b.firstName[0]}{b.lastName[0]}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {b.firstName} {b.lastName}
+                      </p>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 6px", borderRadius: 4, background: "#f3f4f6", color: "#6b7280", flexShrink: 0 }}>
+                      {STAGE_LABELS[b.stage] || b.stage}
+                    </span>
+                    <span style={{ fontSize: 12, color: "#9ca3af", flexShrink: 0 }}>{b.createdAt}</span>
+                    <ChevronRight style={{ width: 14, height: 14, color: "#d1d5db", flexShrink: 0 }} />
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

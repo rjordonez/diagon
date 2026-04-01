@@ -12,7 +12,6 @@ const NAV_ITEMS = [
   { to: "/app", icon: LayoutDashboard, label: "Home", end: true },
   { to: "/app/leads", icon: Kanban, label: "Leads" },
   { to: "/app/templates", icon: FileText, label: "Templates" },
-  { to: "/app/settings", icon: Settings, label: "Settings" },
 ];
 
 export const AuthCRMLayout = () => {
@@ -46,7 +45,7 @@ export const AuthCRMLayout = () => {
   }, [user]);
 
   const location = useLocation();
-  const isFullBleedPage = location.pathname === "/app" || location.pathname === "/app/ai" || location.pathname === "/app/leads" || location.pathname === "/app/pipeline";
+  const isFullBleedPage = location.pathname === "/app" || location.pathname === "/app/ai" || location.pathname === "/app/leads" || location.pathname === "/app/pipeline" || location.pathname.startsWith("/app/borrower/") || location.pathname.startsWith("/app/templates") || location.pathname === "/app/settings";
   const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
 
   const loadConversations = async () => {
@@ -138,7 +137,7 @@ export const AuthCRMLayout = () => {
                   onClick={() => setSidebarOpen(false)}
                   className={({ isActive }) =>
                     cn(
-                      "flex items-center gap-3 h-10 px-3 rounded-lg text-[15px] transition-colors",
+                      "flex items-center gap-3 h-9 px-3 rounded-lg text-[13px] transition-colors",
                       isActive
                         ? "bg-muted text-foreground font-medium"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
@@ -175,13 +174,28 @@ export const AuthCRMLayout = () => {
             </div>
           </div>
 
-          {/* Sign out */}
-          <div style={{ padding: "12px", borderTop: "1px solid #d9d9d9" }}>
+          {/* Bottom nav */}
+          <div style={{ padding: "8px 12px", borderTop: "1px solid #d9d9d9" }}>
+            <NavLink
+              to="/app/settings"
+              onClick={() => setSidebarOpen(false)}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-3 h-8 px-3 rounded-lg text-[13px] transition-colors",
+                  isActive
+                    ? "bg-muted text-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                )
+              }
+            >
+              <Settings className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+              Settings
+            </NavLink>
             <button
               onClick={handleSignOut}
-              className="flex items-center gap-3 h-10 px-3 rounded-lg text-[15px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors w-full"
+              className="flex items-center gap-3 h-8 px-3 rounded-lg text-[13px] text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors w-full"
             >
-              <LogOut className="h-[18px] w-[18px] shrink-0" strokeWidth={1.5} />
+              <LogOut className="h-4 w-4 shrink-0" strokeWidth={1.5} />
               Sign Out
             </button>
           </div>
@@ -200,7 +214,7 @@ export const AuthCRMLayout = () => {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input
                     type="text"
-                    placeholder="Search borrowers..."
+                    placeholder="Search leads..."
                     className="h-9 w-48 md:w-72 pl-9 pr-3 rounded-lg border border-border bg-background text-sm placeholder:text-muted-foreground focus:border-foreground focus:ring-1 focus:ring-foreground focus:outline-none transition-colors"
                   />
                 </div>
@@ -242,7 +256,7 @@ function ChatSectionHeader({ chatsOpen, onToggle, onNewChat }: { chatsOpen: bool
       onMouseLeave={() => setHovered(false)}
     >
       <button onClick={onToggle}
-        className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex-1">
+        className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors flex-1">
         {chatsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         Chats
       </button>

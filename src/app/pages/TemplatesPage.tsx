@@ -1,20 +1,19 @@
 import { useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Plus, FileText, Trash2, Edit2, Layers } from "lucide-react";
-import { cn } from "@/demo/lib/utils";
 import { useTemplates, useDeleteTemplate, useSeedDefaults } from "../hooks/useTemplateData";
 
 export const TemplatesPage = () => {
   const { data: templates = [], isLoading } = useTemplates();
   const deleteTemplate = useDeleteTemplate();
   const seedDefaults = useSeedDefaults();
+  const navigate = useNavigate();
   const seeded = useRef(false);
 
   const baseTemplates = templates.filter((t) => !t.isAddon);
   const addonTemplates = templates.filter((t) => t.isAddon);
   const hasDefaults = templates.some((t) => t.isDefault);
 
-  // Auto-seed defaults on first load if none exist
   useEffect(() => {
     if (!isLoading && !hasDefaults && !seeded.current && !seedDefaults.isPending) {
       seeded.current = true;
@@ -22,89 +21,181 @@ export const TemplatesPage = () => {
     }
   }, [isLoading, hasDefaults]);
 
+  const badge = (label: string, bg = "#f3f4f6", color = "#374151") => (
+    <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: bg, color, marginLeft: 6 }}>
+      {label}
+    </span>
+  );
+
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Templates</h1>
-          <p className="text-sm text-muted-foreground">Document checklists and forms for different borrower types</p>
-        </div>
-        <Link to="/app/templates/new"
-          className="h-9 px-4 rounded-lg bg-foreground text-background text-sm font-medium hover:bg-foreground/90 transition-colors flex items-center gap-1.5">
-          <Plus className="h-3.5 w-3.5" /> New Template
-        </Link>
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* Top bar */}
+      <div style={{
+        height: 56, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "0 24px", borderBottom: "1px solid #e5e7eb", background: "white",
+      }}>
+        <span style={{ fontSize: 16, fontWeight: 600 }}>Templates</span>
+        <button
+          onClick={() => navigate("/app/templates/new")}
+          style={{
+            display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600,
+            background: "#3b82f6", color: "white", border: "none", borderRadius: 8,
+            padding: "8px 18px", cursor: "pointer",
+          }}
+        >
+          <Plus style={{ width: 14, height: 14 }} /> New Template
+        </button>
       </div>
 
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">Loading...</p>
-      ) : templates.length === 0 ? (
-        <div className="border border-border rounded-lg p-8 text-center">
-          <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <h3 className="text-sm font-semibold mb-1">{seedDefaults.isPending ? "Setting up default templates..." : "No templates yet"}</h3>
-          <p className="text-xs text-muted-foreground">{seedDefaults.isPending ? "Loading DSCR documentation templates and borrower profiles..." : "Templates will appear here."}</p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Base Templates */}
-          {baseTemplates.length > 0 && (
-            <div>
-              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Base Templates</h2>
-              <div className="space-y-2">
-                {baseTemplates.map((t) => (
-                  <TemplateRow key={t.id} template={t} onDelete={() => { if (confirm(`Delete "${t.name}"?`)) deleteTemplate.mutate(t.id); }} />
-                ))}
-              </div>
+      {/* Content */}
+      <div style={{ flex: 1, overflow: "auto", background: "#fafafa" }}>
+        <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 24px 48px" }}>
+          {isLoading ? (
+            <div style={{ padding: 48, textAlign: "center" }}>
+              <p style={{ fontSize: 14, color: "#9ca3af" }}>Loading...</p>
             </div>
-          )}
-
-          {/* Add-on Profiles */}
-          {addonTemplates.length > 0 && (
-            <div>
-              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <Layers className="h-3.5 w-3.5" /> Borrower Profile Add-ons
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {addonTemplates.map((t) => (
-                  <div key={t.id} className="border border-border rounded-lg px-4 py-3 bg-background flex items-start gap-3 group">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold">{t.name}</p>
-                      {t.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{t.description}</p>}
-                      <p className="text-[10px] text-muted-foreground mt-1">{t.itemCount} item{t.itemCount !== 1 ? "s" : ""}</p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Link to={`/app/templates/${t.id}/edit`} className="text-muted-foreground hover:text-foreground p-1"><Edit2 className="h-3.5 w-3.5" /></Link>
-                      <button onClick={() => { if (confirm(`Delete "${t.name}"?`)) deleteTemplate.mutate(t.id); }} className="text-muted-foreground hover:text-foreground p-1"><Trash2 className="h-3.5 w-3.5" /></button>
-                    </div>
+          ) : templates.length === 0 ? (
+            <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 48, textAlign: "center" }}>
+              <FileText style={{ width: 32, height: 32, color: "#d1d5db", margin: "0 auto 12px" }} />
+              <p style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 4 }}>
+                {seedDefaults.isPending ? "Setting up default templates..." : "No templates yet"}
+              </p>
+              <p style={{ fontSize: 13, color: "#9ca3af" }}>
+                {seedDefaults.isPending ? "Loading DSCR documentation templates and borrower profiles..." : "Click \"New Template\" to create one."}
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+              {/* Base Templates */}
+              {baseTemplates.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>
+                    Base Templates
                   </div>
-                ))}
-              </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {baseTemplates.map((t) => (
+                      <div
+                        key={t.id}
+                        style={{
+                          background: "white", borderRadius: 12, border: "1px solid #e5e7eb",
+                          padding: "14px 20px", display: "flex", alignItems: "center", gap: 14,
+                          cursor: "pointer", transition: "background 0.15s",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "#fafafa";
+                          e.currentTarget.querySelector<HTMLElement>("[data-actions]")!.style.opacity = "1";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "white";
+                          e.currentTarget.querySelector<HTMLElement>("[data-actions]")!.style.opacity = "0";
+                        }}
+                        onClick={() => navigate(`/app/templates/${t.id}/edit`)}
+                      >
+                        <div style={{
+                          width: 40, height: 40, borderRadius: 10, background: "#f3f4f6",
+                          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                        }}>
+                          <FileText style={{ width: 18, height: 18, color: "#6b7280" }} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center" }}>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{t.name}</span>
+                            {t.borrowerType && badge(t.borrowerType)}
+                            {t.isDefault && badge("Default", "#eef2ff", "#4f46e5")}
+                          </div>
+                          {t.description && (
+                            <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.description}</p>
+                          )}
+                        </div>
+                        <span style={{ fontSize: 12, color: "#9ca3af", flexShrink: 0 }}>{t.itemCount} items</span>
+                        <div data-actions style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, opacity: 0, transition: "opacity 0.15s" }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigate(`/app/templates/${t.id}/edit`); }}
+                            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#9ca3af", display: "flex" }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = "#111")}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = "#9ca3af")}
+                          >
+                            <Edit2 style={{ width: 14, height: 14 }} />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${t.name}"?`)) deleteTemplate.mutate(t.id); }}
+                            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#9ca3af", display: "flex" }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = "#9ca3af")}
+                          >
+                            <Trash2 style={{ width: 14, height: 14 }} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Add-on Profiles */}
+              {addonTemplates.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                    <Layers style={{ width: 12, height: 12 }} /> Borrower Profile Add-ons
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    {addonTemplates.map((t) => (
+                      <div
+                        key={t.id}
+                        style={{
+                          background: "white", borderRadius: 12, border: "1px solid #e5e7eb",
+                          padding: "14px 16px", cursor: "pointer", transition: "background 0.15s",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "#fafafa";
+                          e.currentTarget.querySelector<HTMLElement>("[data-actions]")!.style.opacity = "1";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "white";
+                          e.currentTarget.querySelector<HTMLElement>("[data-actions]")!.style.opacity = "0";
+                        }}
+                        onClick={() => navigate(`/app/templates/${t.id}/edit`)}
+                      >
+                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{t.name}</p>
+                            {t.description && (
+                              <p style={{
+                                fontSize: 12, color: "#9ca3af", marginTop: 3,
+                                overflow: "hidden", textOverflow: "ellipsis",
+                                display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                              }}>{t.description}</p>
+                            )}
+                            <p style={{ fontSize: 11, color: "#c0c0c0", marginTop: 6 }}>{t.itemCount} item{t.itemCount !== 1 ? "s" : ""}</p>
+                          </div>
+                          <div data-actions style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0, opacity: 0, transition: "opacity 0.15s" }}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigate(`/app/templates/${t.id}/edit`); }}
+                              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#9ca3af", display: "flex" }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = "#111")}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = "#9ca3af")}
+                            >
+                              <Edit2 style={{ width: 13, height: 13 }} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${t.name}"?`)) deleteTemplate.mutate(t.id); }}
+                              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#9ca3af", display: "flex" }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = "#9ca3af")}
+                            >
+                              <Trash2 style={{ width: 13, height: 13 }} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
-
-function TemplateRow({ template, onDelete }: { template: { id: string; name: string; borrowerType: string | null; description: string | null; itemCount: number; isDefault: boolean }; onDelete: () => void }) {
-  return (
-    <div className="border border-border rounded-lg px-4 py-3 bg-background flex items-center gap-3 group">
-      <div className="h-10 w-10 rounded-lg bg-foreground/5 flex items-center justify-center shrink-0">
-        <FileText className="h-5 w-5 text-foreground/60" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold">{template.name}</p>
-          {template.borrowerType && <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">{template.borrowerType}</span>}
-          {template.isDefault && <span className="text-[10px] bg-foreground/10 text-foreground px-1.5 py-0.5 rounded">Default</span>}
-        </div>
-        {template.description && <p className="text-xs text-muted-foreground mt-0.5">{template.description}</p>}
-      </div>
-      <span className="text-xs text-muted-foreground shrink-0">{template.itemCount} items</span>
-      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Link to={`/app/templates/${template.id}/edit`} className="text-muted-foreground hover:text-foreground p-1"><Edit2 className="h-3.5 w-3.5" /></Link>
-        <button onClick={onDelete} className="text-muted-foreground hover:text-foreground p-1"><Trash2 className="h-3.5 w-3.5" /></button>
-      </div>
-    </div>
-  );
-}
