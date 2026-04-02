@@ -43,6 +43,7 @@ function acceptLeadToPipeline(lead: IncomingLead) {
     email: lead.email,
     phone: lead.phone,
     loanAmount: lead.loanAmount,
+    loanType: "",
     loanPurpose: lead.loanType,
     propertyAddress: lead.propertyAddress,
     stage: "new-lead",
@@ -60,7 +61,11 @@ function acceptLeadToPipeline(lead: IncomingLead) {
     assignedLO: "Sarah Chen",
     notes: "",
     createdAt: new Date().toISOString().split("T")[0],
+    birthday: null,
     speedToLeadEnabled: false,
+    isActiveLead: null,
+    diagonSequence: null,
+    diagonUploadLinkId: null,
   };
 
   MOCK_BORROWERS.unshift(newBorrower);

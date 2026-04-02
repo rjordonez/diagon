@@ -16,7 +16,6 @@ export const AuthAddLeadModal = ({ open, onClose, onCreated }: { open: boolean; 
   const reset = () => setForm({
     firstName: "", lastName: "", email: "", phone: "", birthday: "",
     loanType: "", loanPurpose: "", loanAmount: "", leadSource: "", notes: "",
-    speedToLead: false,
   });
 
   const handleCreate = async () => {

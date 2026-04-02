@@ -27,6 +27,7 @@ export const AddLeadModal = ({ open, onClose, onCreated }: { open: boolean; onCl
       email: form.email,
       phone: form.phone || "",
       loanAmount: parseInt(form.loanAmount.replace(/[^0-9]/g, "")) || 0,
+      loanType: "",
       loanPurpose: form.loanPurpose,
       stage: "new-lead",
       leadTemp: "warm",
@@ -43,7 +44,11 @@ export const AddLeadModal = ({ open, onClose, onCreated }: { open: boolean; onCl
       assignedLO: "Sarah Chen",
       notes: form.notes,
       createdAt: new Date().toISOString().split("T")[0],
+      birthday: null,
       speedToLeadEnabled: form.speedToLead,
+      isActiveLead: null,
+      diagonSequence: null,
+      diagonUploadLinkId: null,
     };
 
     MOCK_BORROWERS.unshift(newBorrower);
