@@ -1,7 +1,6 @@
 import { useRef } from "react";
 import { useParams } from "react-router-dom";
 import { Upload, Check, FileText, AlertCircle, Loader2 } from "lucide-react";
-import { cn } from "@/demo/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useUploadLinkByToken, usePublicUploadItems, useSubmitUpload } from "@/hooks/usePublicUpload";
@@ -22,19 +21,19 @@ function UploadPageInner() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#fafafa" }}>
+        <Loader2 style={{ width: 24, height: 24, color: "#9ca3af", animation: "spin 1s linear infinite" }} />
       </div>
     );
   }
 
   if (!link) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <div className="text-center max-w-sm">
-          <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <h1 className="text-lg font-semibold mb-1">Invalid Link</h1>
-          <p className="text-sm text-muted-foreground">This upload link doesn't exist or has expired.</p>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#fafafa", padding: 24 }}>
+        <div style={{ textAlign: "center", maxWidth: 360 }}>
+          <AlertCircle style={{ width: 40, height: 40, color: "#d1d5db", margin: "0 auto 12px" }} />
+          <h1 style={{ fontSize: 18, fontWeight: 600, color: "#111", marginBottom: 6 }}>Invalid Link</h1>
+          <p style={{ fontSize: 14, color: "#9ca3af" }}>This upload link doesn't exist or has expired.</p>
         </div>
       </div>
     );
@@ -42,64 +41,69 @@ function UploadPageInner() {
 
   if (link.expired) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <div className="text-center max-w-sm">
-          <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <h1 className="text-lg font-semibold mb-1">Link Expired</h1>
-          <p className="text-sm text-muted-foreground">This upload link has expired. Please contact your loan officer for a new one.</p>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#fafafa", padding: 24 }}>
+        <div style={{ textAlign: "center", maxWidth: 360 }}>
+          <AlertCircle style={{ width: 40, height: 40, color: "#d1d5db", margin: "0 auto 12px" }} />
+          <h1 style={{ fontSize: 18, fontWeight: 600, color: "#111", marginBottom: 6 }}>Link Expired</h1>
+          <p style={{ fontSize: 14, color: "#9ca3af" }}>This upload link has expired. Please contact your loan officer for a new one.</p>
         </div>
       </div>
     );
   }
 
   const uploadedCount = items.filter((i) => i.status !== "pending").length;
+  const allDone = uploadedCount === items.length && items.length > 0;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-lg mx-auto px-4 py-8 md:py-16">
+    <div style={{ minHeight: "100vh", background: "#fafafa" }}>
+      <div style={{ maxWidth: 520, margin: "0 auto", padding: "40px 24px 60px" }}>
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="h-12 w-12 rounded-full bg-foreground/10 flex items-center justify-center mx-auto mb-3">
-            <Upload className="h-6 w-6 text-foreground" />
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: "50%", background: "#eff6ff",
+            display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px",
+          }}>
+            <Upload style={{ width: 22, height: 22, color: "#3b82f6" }} />
           </div>
-          <h1 className="text-xl font-bold tracking-tight">Document Upload</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111" }}>Document Upload</h1>
+          <p style={{ fontSize: 14, color: "#9ca3af", marginTop: 6 }}>
             Hi {link.borrowerName.split(" ")[0]}, please upload the following documents for your loan application.
           </p>
         </div>
 
         {/* Progress */}
         {items.length > 0 && (
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-foreground rounded-full transition-all"
-                style={{ width: `${(uploadedCount / items.length) * 100}%` }}
-              />
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
+            <div style={{ flex: 1, height: 6, background: "#e5e7eb", borderRadius: 3, overflow: "hidden" }}>
+              <div style={{
+                height: "100%", background: allDone ? "#16a34a" : "#3b82f6", borderRadius: 3,
+                transition: "width 0.3s", width: `${(uploadedCount / items.length) * 100}%`,
+              }} />
             </div>
-            <span className="text-xs text-muted-foreground shrink-0">{uploadedCount} of {items.length}</span>
+            <span style={{ fontSize: 12, color: "#9ca3af", flexShrink: 0 }}>{uploadedCount} of {items.length}</span>
           </div>
         )}
 
         {/* All done */}
-        {uploadedCount === items.length && items.length > 0 && (
-          <div className="bg-foreground/5 border border-border rounded-lg p-4 mb-6 text-center">
-            <Check className="h-6 w-6 text-foreground mx-auto mb-1" />
-            <p className="text-sm font-medium">All documents uploaded!</p>
-            <p className="text-xs text-muted-foreground">Your loan officer will review them shortly.</p>
+        {allDone && (
+          <div style={{
+            background: "#f0fdf4", border: "1px solid #d1fae5", borderRadius: 12,
+            padding: 20, textAlign: "center", marginBottom: 20,
+          }}>
+            <Check style={{ width: 24, height: 24, color: "#16a34a", margin: "0 auto 6px" }} />
+            <p style={{ fontSize: 14, fontWeight: 600, color: "#16a34a" }}>All documents uploaded!</p>
+            <p style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>Your loan officer will review them shortly.</p>
           </div>
         )}
 
         {/* Items */}
-        <div className="space-y-2">
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {items.map((item) => (
             <UploadItemCard key={item.id} item={item} token={token!} linkId={link.id} submitUpload={submitUpload} />
           ))}
         </div>
 
-        <p className="text-[10px] text-muted-foreground text-center mt-8">
-          Powered by Diagon
-        </p>
+        <p style={{ fontSize: 10, color: "#d1d5db", textAlign: "center", marginTop: 40 }}>Powered by Diagon</p>
       </div>
     </div>
   );
@@ -107,60 +111,57 @@ function UploadPageInner() {
 
 function UploadItemCard({ item, token, linkId, submitUpload }: {
   item: { id: string; templateItemId: string; templateItemName: string; templateItemDescription: string | null; required: boolean; status: string };
-  token: string;
-  linkId: string;
+  token: string; linkId: string;
   submitUpload: ReturnType<typeof useSubmitUpload>;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const isUploading = submitUpload.isPending;
+  const isDone = item.status !== "pending";
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const { data } = await supabase.from("upload_links").select("borrower_id").eq("id", linkId).single();
-
     if (!data) return;
-
-    await submitUpload.mutateAsync({
-      token,
-      templateItemId: item.templateItemId,
-      file,
-      borrowerId: data.borrower_id,
-    });
+    await submitUpload.mutateAsync({ token, templateItemId: item.templateItemId, file, borrowerId: data.borrower_id });
   };
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-border">
-      <div className={cn(
-        "h-8 w-8 rounded-full flex items-center justify-center shrink-0",
-        item.status !== "pending" ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
-      )}>
-        {item.status !== "pending" ? <Check className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+    <div style={{
+      display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 10,
+      border: isDone ? "1px solid #d1fae5" : "1px solid #e5e7eb",
+      background: isDone ? "#f0fdf4" : "white",
+    }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+        background: isDone ? "#16a34a" : "#f3f4f6",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        {isDone ? <Check style={{ width: 14, height: 14, color: "white" }} /> : <FileText style={{ width: 14, height: 14, color: "#9ca3af" }} />}
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium">
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: 14, fontWeight: 500, color: isDone ? "#6b7280" : "#111" }}>
           {item.templateItemName}
-          {item.required && <span className="text-xs text-muted-foreground ml-1">*</span>}
+          {item.required && <span style={{ color: "#d1d5db", marginLeft: 4 }}>*</span>}
         </p>
         {item.templateItemDescription && (
-          <p className="text-xs text-muted-foreground">{item.templateItemDescription}</p>
+          <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{item.templateItemDescription}</p>
         )}
       </div>
-      {item.status === "pending" ? (
+      {isDone ? (
+        <span style={{ fontSize: 11, fontWeight: 600, color: "#16a34a", background: "#dcfce7", padding: "3px 8px", borderRadius: 4 }}>Uploaded</span>
+      ) : (
         <>
-          <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="h-8 px-3 rounded-lg bg-foreground text-background text-xs font-medium hover:bg-foreground/90 transition-colors disabled:opacity-50 flex items-center gap-1"
-          >
-            {isUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+          <input ref={fileInputRef} type="file" style={{ display: "none" }} onChange={handleFileSelect} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" />
+          <button onClick={() => fileInputRef.current?.click()} disabled={submitUpload.isPending}
+            style={{
+              height: 32, padding: "0 14px", borderRadius: 8, background: "#3b82f6", color: "white",
+              border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 4, opacity: submitUpload.isPending ? 0.5 : 1, fontFamily: "inherit",
+            }}>
+            {submitUpload.isPending ? <Loader2 style={{ width: 12, height: 12 }} /> : <Upload style={{ width: 12, height: 12 }} />}
             Upload
           </button>
         </>
-      ) : (
-        <span className="text-xs font-medium text-foreground bg-foreground/10 px-2 py-1 rounded">Uploaded</span>
       )}
     </div>
   );

@@ -1,5 +1,6 @@
 import { IMessageSDK } from "@photon-ai/imessage-kit";
 import { supabase } from "../lib/supabase.js";
+import { processDiagonReply } from "./diagon-agent.js";
 
 const POLL_INTERVAL = 3000;
 
@@ -23,9 +24,28 @@ export async function processOutboundQueue() {
     return;
   }
 
+  // Mark all as "sending" first to prevent duplicate picks on next poll
+  const ids = (queued || []).map((m) => m.id);
+  if (ids.length > 0) {
+    await supabase.from("messages").update({ status: "sending" }).in("id", ids);
+  }
+
   for (const msg of queued || []) {
     try {
       let phone = cleanPhone(msg.recipient);
+
+      // If no recipient (e.g. Diagon-generated), look up borrower phone
+      if (!phone && msg.borrower_id) {
+        const { data: b } = await supabase.from("borrowers").select("phone").eq("id", msg.borrower_id).single();
+        if (b?.phone) phone = cleanPhone(b.phone);
+      }
+
+      if (!phone) {
+        console.error(`✗ No phone for message ${msg.id}`);
+        await supabase.from("messages").update({ status: "failed" }).eq("id", msg.id);
+        continue;
+      }
+
       if (!phone.startsWith("+")) {
         phone = "+1" + phone.replace(/^1/, "");
       }
@@ -89,6 +109,19 @@ export async function startInboundWatcher() {
         console.error("Error saving inbound message:", error.message);
       } else {
         console.log(`← Inbound from ${sender}: "${(msg.text || "").slice(0, 50)}"`);
+
+        // Check if borrower has active Diagon sequence
+        const { data: bData } = await supabase
+          .from("borrowers")
+          .select("diagon_sequence")
+          .eq("id", borrower.id)
+          .single();
+
+        if (bData?.diagon_sequence && !["completed", "opted_out"].includes(bData.diagon_sequence)) {
+          processDiagonReply(borrower.id, msg.text || "").catch((err) =>
+            console.error("Diagon agent error:", err.message)
+          );
+        }
       }
 
     },

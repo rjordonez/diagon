@@ -2,7 +2,15 @@ import React, { useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 
-const inputClass = "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:ring-1 focus:ring-foreground focus:outline-none transition-colors";
+const inputStyle: React.CSSProperties = {
+  width: "100%", height: 40, borderRadius: 8, border: "1px solid #e5e7eb",
+  padding: "0 14px", fontSize: 14, color: "#111", outline: "none",
+  background: "white", fontFamily: "inherit",
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 12, fontWeight: 500, color: "#6b7280", marginBottom: 6, display: "block",
+};
 
 export const BorrowerLoginPage = () => {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -38,47 +46,79 @@ export const BorrowerLoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <Link to="/" className="inline-block">
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Diagon</h1>
+    <div style={{ minHeight: "100vh", background: "#fafafa", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ width: "100%", maxWidth: 400 }}>
+        {/* Brand */}
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <Link to="/" style={{ textDecoration: "none" }}>
+            <h1 style={{ fontSize: 28, fontWeight: 700, color: "#111" }}>Diagon</h1>
           </Link>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p style={{ fontSize: 14, color: "#9ca3af", marginTop: 6 }}>
             {mode === "login" ? "Sign in to your borrower portal" : "Create your borrower account"}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-background rounded-lg border border-border p-6 space-y-4">
+        {/* Card */}
+        <form onSubmit={handleSubmit} style={{
+          background: "white", borderRadius: 12, border: "1px solid #e5e7eb",
+          padding: 28, display: "flex", flexDirection: "column", gap: 16,
+        }}>
           {mode === "signup" && (
             <div>
-              <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">Full Name</label>
-              <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputClass} placeholder="Your full name" />
+              <label style={labelStyle}>Full Name</label>
+              <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)}
+                placeholder="Your full name" style={inputStyle}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "#111")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "#e5e7eb")} />
             </div>
           )}
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} placeholder="you@email.com" required />
+            <label style={labelStyle}>Email</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@email.com" required style={inputStyle}
+              onFocus={(e) => (e.currentTarget.style.borderColor = "#111")}
+              onBlur={(e) => (e.currentTarget.style.borderColor = "#e5e7eb")} />
           </div>
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">Password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass} placeholder="••••••••" required minLength={6} />
+            <label style={labelStyle}>Password</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••" required minLength={6} style={inputStyle}
+              onFocus={(e) => (e.currentTarget.style.borderColor = "#111")}
+              onBlur={(e) => (e.currentTarget.style.borderColor = "#e5e7eb")} />
           </div>
 
-          {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
-          {success && <p className="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2">{success}</p>}
+          {error && (
+            <p style={{ fontSize: 13, color: "#dc2626", background: "#fef2f2", borderRadius: 8, padding: "8px 12px" }}>{error}</p>
+          )}
+          {success && (
+            <p style={{ fontSize: 13, color: "#16a34a", background: "#f0fdf4", borderRadius: 8, padding: "8px 12px" }}>{success}</p>
+          )}
 
-          <button type="submit" disabled={loading}
-            className="w-full h-11 rounded-lg bg-foreground text-background text-sm font-semibold hover:opacity-80 transition-opacity disabled:opacity-50">
+          <button type="submit" disabled={loading} style={{
+            width: "100%", height: 42, borderRadius: 8, background: "#3b82f6", color: "white",
+            border: "none", fontSize: 14, fontWeight: 600, cursor: "pointer",
+            opacity: loading ? 0.5 : 1, fontFamily: "inherit",
+          }}>
             {loading ? "..." : mode === "login" ? "Sign In" : "Create Account"}
           </button>
         </form>
 
-        <p className="text-center text-sm text-muted-foreground">
+        {/* Toggle */}
+        <p style={{ textAlign: "center", fontSize: 13, color: "#9ca3af", marginTop: 20 }}>
           {mode === "login" ? (
-            <>Don't have an account? <button onClick={() => { setMode("signup"); setError(null); }} className="text-foreground font-medium hover:opacity-70">Sign up</button></>
+            <>Don't have an account?{" "}
+              <button onClick={() => { setMode("signup"); setError(null); }}
+                style={{ color: "#3b82f6", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>
+                Sign up
+              </button>
+            </>
           ) : (
-            <>Already have an account? <button onClick={() => { setMode("login"); setError(null); }} className="text-foreground font-medium hover:opacity-70">Sign in</button></>
+            <>Already have an account?{" "}
+              <button onClick={() => { setMode("login"); setError(null); }}
+                style={{ color: "#3b82f6", fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>
+                Sign in
+              </button>
+            </>
           )}
         </p>
       </div>

@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Plus, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, X, Send, Shield, Trash2, MessageCircle,
-  Type, Hash, Calendar, DollarSign, Tag,
+  Type, Hash, Calendar, DollarSign, Tag, Search,
 } from "lucide-react";
 import { useBorrowers } from "../hooks/useSupabaseData";
+import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { LEAD_SOURCES, LOAN_PURPOSES } from "@/demo/crm/data/mockData";
+import { LEAD_SOURCES, LOAN_PURPOSES, LOAN_TYPES } from "@/demo/crm/data/mockData";
 import { AuthAddLeadModal } from "../components/AuthAddLeadModal";
 
 const fmt = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
@@ -19,9 +20,9 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 const STAGE_KEYS = Object.keys(STAGE_LABELS);
-const TEMP_COLORS: Record<string, string> = { hot: "#ef4444", warm: "#f59e0b", cold: "#3b82f6" };
+const TEMP_COLORS: Record<string, string> = { hot: "#ef4444", warm: "#f59e0b", cold: "#eab308" };
 
-type SortField = "name" | "email" | "phone" | "loanPurpose" | "loanAmount" | "stage" | "leadTemp" | "leadScore" | "leadSource" | "createdAt";
+type SortField = "name" | "email" | "phone" | "loanType" | "loanPurpose" | "loanAmount" | "stage" | "leadTemp" | "leadSource" | "createdAt" | "isActiveLead" | "docsStatus" | "birthday";
 type ColumnType = "text" | "number" | "currency" | "select" | "date";
 type CalcType = "countEmpty" | "countFilled" | "percentEmpty" | "percentFilled";
 
@@ -42,14 +43,17 @@ const FROZEN_LEFT = CHECKBOX_W + NAME_W; // 240px total frozen width
 
 const COLUMNS: ColumnDef[] = [
   { key: "name", label: "Name", type: "text", dbField: "first_name", width: NAME_W },
+  { key: "leadTemp", label: "Temp", type: "select", dbField: "lead_temp", options: ["hot", "warm", "cold"], width: 100 },
+  { key: "isActiveLead", label: "Active", type: "select", dbField: "is_active_lead", options: ["true", "pending", "false"], align: "center", width: 80 },
+  { key: "docsStatus", label: "Docs", type: "text", dbField: "", align: "center", width: 110 },
   { key: "email", label: "Email", type: "text", dbField: "email", width: 200 },
   { key: "phone", label: "Phone", type: "text", dbField: "phone", width: 150 },
+  { key: "loanType", label: "Loan Type", type: "select", dbField: "loan_type", options: LOAN_TYPES, width: 150 },
   { key: "loanPurpose", label: "Loan Purpose", type: "select", dbField: "loan_purpose", options: LOAN_PURPOSES, width: 150 },
   { key: "loanAmount", label: "Loan Amount", type: "currency", dbField: "loan_amount", align: "right", width: 150 },
   { key: "stage", label: "Stage", type: "select", dbField: "stage", options: STAGE_KEYS, width: 150 },
-  { key: "leadTemp", label: "Temp", type: "select", dbField: "lead_temp", options: ["hot", "warm", "cold"], width: 100 },
-  { key: "leadScore", label: "Score", type: "number", dbField: "lead_score", align: "center", width: 90 },
   { key: "leadSource", label: "Lead Source", type: "select", dbField: "lead_source", options: LEAD_SOURCES, width: 150 },
+  { key: "birthday", label: "Birthday", type: "date", dbField: "birthday", width: 120 },
   { key: "createdAt", label: "Created", type: "date", dbField: "created_at", width: 140 },
 ];
 
@@ -60,12 +64,22 @@ function getFieldValue(b: Record<string, any>, key: SortField): string {
     case "name": return `${b.firstName} ${b.lastName}`;
     case "email": return b.email || "";
     case "phone": return b.phone || "";
+    case "loanType": return b.loanType || "";
     case "loanPurpose": return b.loanPurpose || "";
     case "loanAmount": return String(b.loanAmount || 0);
     case "stage": return b.stage || "";
     case "leadTemp": return b.leadTemp || "";
-    case "leadScore": return String(b.leadScore ?? "");
     case "leadSource": return b.leadSource || "";
+    case "isActiveLead": return b.isActiveLead === null ? "" : String(b.isActiveLead);
+    case "docsStatus": {
+      const submittedStages = ["app-submitted", "in-review", "conditionally-approved", "clear-to-close", "closed"];
+      if (submittedStages.includes(b.stage)) return "submitted";
+      if (b.docsRequested > 0 && b.docsReceived >= b.docsRequested) return "submitted";
+      if (b.diagonSequence === "link_sent" || b.diagonUploadLinkId) return "link sent";
+      if (b.docsRequested > 0) return "link sent";
+      return "no link";
+    }
+    case "birthday": return b.birthday || "";
     case "createdAt": return b.createdAt || "";
     default: return "";
   }
@@ -91,10 +105,12 @@ const TABLE_CSS = `
 `;
 
 export const AuthPipelinePage = () => {
+  const { user } = useAuth();
   const { data: borrowers = [], isLoading } = useBorrowers();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortAsc, setSortAsc] = useState(false);
@@ -120,18 +136,30 @@ export const AuthPipelinePage = () => {
     else { setSortField(f); setSortAsc(true); }
   };
 
-  const sorted = [...borrowers].sort((a, b) => {
+  const filtered = search.trim()
+    ? borrowers.filter((b) => {
+        const q = search.toLowerCase();
+        return `${b.firstName} ${b.lastName}`.toLowerCase().includes(q)
+          || b.email.toLowerCase().includes(q)
+          || (b.phone || "").includes(q);
+      })
+    : borrowers;
+
+  const sorted = [...filtered].sort((a, b) => {
     let c = 0;
     switch (sortField) {
       case "name": c = `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`); break;
       case "email": c = a.email.localeCompare(b.email); break;
       case "phone": c = (a.phone || "").localeCompare(b.phone || ""); break;
+      case "loanType": c = (a.loanType || "").localeCompare(b.loanType || ""); break;
       case "loanPurpose": c = (a.loanPurpose || "").localeCompare(b.loanPurpose || ""); break;
       case "loanAmount": c = a.loanAmount - b.loanAmount; break;
       case "stage": c = a.stage.localeCompare(b.stage); break;
       case "leadTemp": c = a.leadTemp.localeCompare(b.leadTemp); break;
-      case "leadScore": c = a.leadScore - b.leadScore; break;
       case "leadSource": c = (a.leadSource || "").localeCompare(b.leadSource || ""); break;
+      case "isActiveLead": c = Number(a.isActiveLead ?? -1) - Number(b.isActiveLead ?? -1); break;
+      case "docsStatus": c = getFieldValue(a, "docsStatus").localeCompare(getFieldValue(b, "docsStatus")); break;
+      case "birthday": c = (a.birthday || "").localeCompare(b.birthday || ""); break;
       case "createdAt": c = a.createdAt.localeCompare(b.createdAt); break;
     }
     return sortAsc ? c : -c;
@@ -155,25 +183,40 @@ export const AuthPipelinePage = () => {
     setEditValue(getFieldValue(b, colKey));
   };
   const cancelEdit = () => setEditingCell(null);
-  const saveEdit = async () => {
+  const saveEdit = async (overrideValue?: string) => {
     if (!editingCell) return;
     const { rowId, colKey } = editingCell;
     const col = COLUMNS.find((c) => c.key === colKey);
-    if (!col) { cancelEdit(); return; }
+    if (!col || !col.dbField) { cancelEdit(); return; }
+    const val = overrideValue ?? editValue;
     let payload: Record<string, any> = {};
     if (colKey === "name") {
-      const parts = editValue.trim().split(/\s+/);
+      const parts = val.trim().split(/\s+/);
       payload = { first_name: parts[0] || "", last_name: parts.slice(1).join(" ") || "" };
     } else if (col.type === "currency" || col.type === "number") {
-      const num = parseFloat(editValue.replace(/[^0-9.-]/g, ""));
+      const num = parseFloat(val.replace(/[^0-9.-]/g, ""));
       if (isNaN(num)) { cancelEdit(); return; }
       payload = { [col.dbField]: num };
     } else {
-      payload = { [col.dbField]: editValue };
+      payload = { [col.dbField]: val };
     }
     setEditingCell(null);
-    await supabase.from("borrowers").update(payload).eq("id", rowId);
-    queryClient.invalidateQueries({ queryKey: ["borrowers"] });
+    // Optimistic update — mutate the cache directly so the UI doesn't flash
+    queryClient.setQueryData(["borrowers", user?.id], (old: any[] | undefined) => {
+      if (!old) return old;
+      return old.map((b: any) => {
+        if (b.id !== rowId) return b;
+        if (colKey === "name") {
+          const parts = val.trim().split(/\s+/);
+          return { ...b, firstName: parts[0] || "", lastName: parts.slice(1).join(" ") || "" };
+        }
+        // Map dbField back to camelCase key
+        const camelKey = colKey as string;
+        return { ...b, [camelKey]: col.type === "currency" || col.type === "number" ? parseFloat(val.replace(/[^0-9.-]/g, "")) : val };
+      });
+    });
+    // Fire and forget — no need to refetch
+    supabase.from("borrowers").update(payload).eq("id", rowId).then();
   };
 
   const computeCalc = (colKey: SortField, calc: CalcType): string => {
@@ -263,8 +306,33 @@ export const AuthPipelinePage = () => {
         );
       case "leadTemp":
         return <span style={{ fontSize: 12, fontWeight: 600, textTransform: "capitalize", color: TEMP_COLORS[b.leadTemp] || "#6b7280" }}>{b.leadTemp}</span>;
-      case "leadScore":
-        return <span style={{ color: "#6b7280" }}>{b.leadScore}</span>;
+      case "docsStatus": {
+        const ds = getFieldValue(b, "docsStatus");
+        const cfg = ds === "submitted" ? { bg: "#f0fdf4", color: "#16a34a", label: "Submitted" }
+          : ds === "link sent" ? { bg: "#eff6ff", color: "#3b82f6", label: "Link Sent" }
+          : { bg: "#f3f4f6", color: "#9ca3af", label: "No Link" };
+        return (
+          <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 4, background: cfg.bg, color: cfg.color }}>
+            {cfg.label}
+          </span>
+        );
+      }
+      case "isActiveLead": {
+        const status = b.isActiveLead;
+        const dotColor = status === true || status === "true" ? "#22c55e"
+          : status === false || status === "false" ? "#ef4444"
+          : status === "pending" ? "#eab308"
+          : null;
+        return (
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            {dotColor ? (
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: dotColor }} />
+            ) : (
+              <span style={{ fontSize: 11, color: "#d1d5db" }}>—</span>
+            )}
+          </div>
+        );
+      }
       case "createdAt":
         return <span style={{ color: "#9ca3af" }}>{val}</span>;
       default:
@@ -276,13 +344,13 @@ export const AuthPipelinePage = () => {
     if (col.type === "select" && col.options) {
       return (
         <select value={editValue}
-          onChange={(e) => { setEditValue(e.target.value); setTimeout(() => saveEdit(), 0); }}
+          onChange={(e) => { const v = e.target.value; setEditValue(v); saveEdit(v); }}
           onKeyDown={(e) => { if (e.key === "Escape") cancelEdit(); }}
-          onBlur={() => saveEdit()}
+          onBlur={() => {}}
           ref={(el) => el?.focus()}
           style={{ ...editorStyle, cursor: "pointer" }}
         >
-          {col.options.map((opt) => <option key={opt} value={opt}>{col.key === "stage" ? (STAGE_LABELS[opt] || opt) : opt}</option>)}
+          {col.options.map((opt) => <option key={opt} value={opt}>{col.key === "stage" ? (STAGE_LABELS[opt] || opt) : col.key === "isActiveLead" ? (opt === "true" ? "Active" : opt === "pending" ? "Pending" : "Opted Out") : opt}</option>)}
         </select>
       );
     }
@@ -307,30 +375,44 @@ export const AuthPipelinePage = () => {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       <style>{TABLE_CSS}</style>
 
-      {/* Header row 1 */}
-      <div style={{ height: 56, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", borderBottom: "1px solid #e5e7eb" }}>
-        <span style={{ fontSize: 16, fontWeight: 600 }}>Leads</span>
-        <button onClick={() => navigate("/app")} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, color: "#6b7280", background: "none", border: "none", cursor: "pointer" }}>
-          <MessageCircle style={{ width: 16, height: 16 }} /> Ask Diagon
-        </button>
+      {/* Header */}
+      <div style={{ height: 56, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", borderBottom: "1px solid #e5e7eb", background: "white" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 16, fontWeight: 600 }}>Leads</span>
+          <span style={{ fontSize: 12, color: "#9ca3af" }}>{sorted.length}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={() => navigate("/app")} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#6b7280", background: "none", border: "none", cursor: "pointer", padding: "6px 10px", borderRadius: 6 }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "none")}>
+            <MessageCircle style={{ width: 14, height: 14 }} /> Ask Diagon
+          </button>
+          <button onClick={() => setAddLeadOpen(true)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, background: "#3b82f6", color: "white", border: "none", borderRadius: 8, padding: "6px 14px", cursor: "pointer" }}>
+            <Plus style={{ width: 14, height: 14 }} /> New Lead
+          </button>
+        </div>
       </div>
 
-      {/* Header row 2 */}
-      <div style={{ height: 48, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", borderBottom: "1px solid #e5e7eb" }}>
-        <button style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 500, background: "none", border: "1px solid #e5e7eb", borderRadius: 8, padding: "6px 14px", cursor: "pointer" }}>
-          All Leads <ChevronDown style={{ width: 14, height: 14 }} />
-        </button>
-        <button onClick={() => setAddLeadOpen(true)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, background: "#3b82f6", color: "white", border: "none", borderRadius: 8, padding: "8px 18px", cursor: "pointer" }}>
-          <Plus style={{ width: 14, height: 14 }} /> New Lead
-        </button>
-      </div>
-
-      {/* Header row 3 - sort */}
-      <div style={{ height: 36, flexShrink: 0, display: "flex", alignItems: "center", gap: 16, padding: "0 20px", borderBottom: "1px solid #e5e7eb", background: "#fafafa" }}>
+      {/* Header row 3 - sort + search */}
+      <div style={{ height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", borderBottom: "1px solid #e5e7eb", background: "#fafafa" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#6b7280" }}>
           <ArrowUpDown style={{ width: 13, height: 13 }} />
           Sorted by <span style={{ fontWeight: 600, color: "#111" }}>{COLUMNS.find((c) => c.key === sortField)?.label || sortField}</span>
           <span style={{ color: "#9ca3af" }}>{sortAsc ? "(A-Z)" : "(Z-A)"}</span>
+        </div>
+        <div style={{ position: "relative" }}>
+          <Search style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, color: "#9ca3af" }} />
+          <input
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search leads..."
+            style={{
+              height: 26, width: 180, borderRadius: 6, border: "1px solid #e5e7eb",
+              padding: "0 8px 0 26px", fontSize: 12, color: "#111", outline: "none",
+              background: "white", fontFamily: "inherit",
+            }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "#111")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "#e5e7eb")}
+          />
         </div>
       </div>
 
@@ -416,7 +498,7 @@ export const AuthPipelinePage = () => {
                         const isEditing = editingCell?.rowId === b.id && editingCell?.colKey === col.key;
                         return (
                           <td key={col.key}
-                            onClick={() => { if (!isEditing) startEditing(b.id, col.key); }}
+                            onClick={() => { if (!isEditing && col.key !== "docsStatus") startEditing(b.id, col.key); }}
                             style={{
                               ...cell, textAlign: col.align || "left", cursor: "cell",
                               ...(isEditing ? { background: "#eff6ff", boxShadow: "inset 0 0 0 2px #3b82f6", overflow: "visible", padding: "0 4px" } : {}),

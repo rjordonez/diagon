@@ -14,6 +14,7 @@ function mapBorrower(row: Record<string, unknown>): Borrower {
     email: row.email as string,
     phone: (row.phone as string) || "",
     loanAmount: Number(row.loan_amount) || 0,
+    loanType: (row.loan_type as string) || "",
     loanPurpose: (row.loan_purpose as string) || "",
     propertyAddress: (row.property_address as string) || undefined,
     stage: (row.stage as Borrower["stage"]) || "new-lead",
@@ -31,7 +32,11 @@ function mapBorrower(row: Record<string, unknown>): Borrower {
     assignedLO: (row.assigned_lo as string) || "You",
     notes: (row.notes as string) || "",
     createdAt: row.created_at ? new Date(row.created_at as string).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+    birthday: (row.birthday as string) || null,
     speedToLeadEnabled: (row.speed_to_lead_enabled as boolean) || false,
+    isActiveLead: row.is_active_lead as boolean | null | "pending",
+    diagonSequence: (row.diagon_sequence as string) || null,
+    diagonUploadLinkId: (row.diagon_upload_link_id as string) || null,
   };
 }
 
@@ -259,11 +264,12 @@ export function useAddBorrower() {
       lastName: string;
       email: string;
       phone: string;
+      birthday?: string;
+      loanType?: string;
       loanPurpose: string;
       loanAmount: number;
       leadSource: string;
       notes: string;
-      speedToLead: boolean;
     }) => {
       if (!user) throw new Error("Not authenticated");
 
@@ -273,14 +279,15 @@ export function useAddBorrower() {
         last_name: data.lastName,
         email: data.email,
         phone: data.phone || "",
+        birthday: data.birthday || null,
         loan_amount: data.loanAmount,
+        loan_type: data.loanType || null,
         loan_purpose: data.loanPurpose,
         stage: "new-lead",
         lead_temp: "warm",
         lead_score: 50,
         lead_source: data.leadSource,
         notes: data.notes,
-        speed_to_lead_enabled: data.speedToLead,
       });
       if (error) throw error;
     },

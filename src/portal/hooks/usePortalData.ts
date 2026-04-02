@@ -28,14 +28,28 @@ export function useMyApplications() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("borrower_applications")
-        .select("*, upload_links(token, template_id, document_templates(name))")
+        .select("*, upload_links(token, template_id, user_id, document_templates(name))")
         .eq("borrower_user_id", user!.id)
         .order("updated_at", { ascending: false });
       if (error) throw error;
+
+      // Fetch LO names for each unique LO user_id
+      const loIds = [...new Set((data || []).map((r: any) => r.lo_user_id).filter(Boolean))];
+      const loNames: Record<string, string> = {};
+      if (loIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", loIds);
+        for (const p of profiles || []) {
+          loNames[p.id] = p.full_name || "Your Loan Officer";
+        }
+      }
+
       return (data || []).map((row: any): BorrowerApplication => ({
         id: row.id,
         uploadLinkId: row.upload_link_id,
-        loName: "Your Loan Officer",
+        loName: loNames[row.lo_user_id] || "Your Loan Officer",
         templateName: row.upload_links?.document_templates?.name || "Application",
         status: row.status,
         createdAt: row.created_at,
@@ -131,11 +145,15 @@ export function useSubmitApplication() {
 
   return useMutation({
     mutationFn: async (applicationId: string) => {
+      // Update application status
       const { error } = await supabase
         .from("borrower_applications")
         .update({ status: "submitted", updated_at: new Date().toISOString() })
         .eq("id", applicationId);
       if (error) throw error;
+
+      // Update borrower's pipeline stage via RPC (bypasses RLS since borrowers table is LO-owned)
+      await supabase.rpc("submit_application_update_stage", { p_application_id: applicationId });
     },
     onSuccess: (_data, applicationId) => {
       queryClient.invalidateQueries({ queryKey: ["application", applicationId] });
@@ -168,7 +186,7 @@ export function useClaimInvite() {
         .update({ borrower_user_id: user.id })
         .eq("id", link.id);
 
-      // Check if application already exists
+      // Check if application already exists for this specific link
       const { data: existing } = await supabase
         .from("borrower_applications")
         .select("id")
@@ -178,7 +196,7 @@ export function useClaimInvite() {
 
       if (existing) return existing.id;
 
-      // Create application
+      // Create new application for this link
       const { data: app, error: aErr } = await supabase
         .from("borrower_applications")
         .insert({

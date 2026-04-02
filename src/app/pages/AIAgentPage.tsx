@@ -279,9 +279,9 @@ const STAGE_LABELS: Record<string, string> = {
 const TEMP_DOT: Record<string, string> = { hot: "#ef4444", warm: "#f59e0b", cold: "#3b82f6" };
 
 const MOCK_AUTOMATIONS = [
-  { id: "a1", label: "Follow up with new leads", time: "Daily, 9:00 AM", active: true },
-  { id: "a2", label: "Send doc reminder to stalled apps", time: "Every 3 days", active: true },
-  { id: "a3", label: "Re-engage cold leads", time: "Weekly, Monday", active: false },
+  { id: "a1", label: "Follow up with new leads", time: "Immediately + 1h, 4h, 24h", active: true },
+  { id: "a2", label: "Re-engage old leads", time: "Day 1, Day 3, Day 7", active: true },
+  { id: "a3", label: "Email drip — Rate update", time: "Every Monday, 9:00 AM", active: false },
 ];
 
 function HomeView({ userName, recentChat, input, setInput, handleSend, isLoading, navigate }: {
@@ -321,34 +321,65 @@ function HomeView({ userName, recentChat, input, setInput, handleSend, isLoading
           {/* Chat input */}
           <ChatInput value={input} onChange={setInput} onSend={handleSend} isLoading={isLoading} rows={4} />
 
-          {/* Upcoming Automations */}
-          <div style={{ marginTop: 36 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 600, color: "#111", margin: 0 }}>Upcoming Automations</h2>
-              <span style={{ fontSize: 12, color: "#9ca3af" }}>Today, {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-            </div>
-            <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
-              {MOCK_AUTOMATIONS.map((auto, i) => (
-                <div key={auto.id} style={{
-                  display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
-                  borderBottom: i < MOCK_AUTOMATIONS.length - 1 ? "1px solid #f3f4f6" : "none",
-                  cursor: "pointer", transition: "background 0.1s",
-                }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
-                >
-                  <div style={{
-                    width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
-                    background: auto.active ? "#22c55e" : "#d1d5db",
-                  }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: auto.active ? "#111" : "#9ca3af" }}>{auto.label}</p>
-                  </div>
-                  <span style={{ fontSize: 12, color: "#9ca3af", flexShrink: 0 }}>{auto.time}</span>
+          {/* Recent Activity — sent links + submissions */}
+          {(() => {
+            // Submitted = stage is app-submitted or later
+            const submittedStages = ["app-submitted", "in-review", "conditionally-approved", "clear-to-close", "closed"];
+            const submitted = borrowers.filter((b) => submittedStages.includes(b.stage));
+            // Has link = docsRequested > 0 or diagonUploadLinkId set, but not already submitted
+            const withLinks = borrowers.filter((b) => (b.docsRequested > 0 || b.diagonUploadLinkId) && !submittedStages.includes(b.stage));
+            const inProgress = withLinks.filter((b) => b.docsReceived > 0);
+            const pending = withLinks.filter((b) => b.docsReceived === 0);
+            const items = [
+              ...submitted.map((b) => ({ ...b, type: "submitted" as const })),
+              ...inProgress.map((b) => ({ ...b, type: "in_progress" as const })),
+              ...pending.map((b) => ({ ...b, type: "link_sent" as const })),
+            ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+            if (items.length === 0) return null;
+            return (
+              <div style={{ marginTop: 28 }}>
+                <h2 style={{ fontSize: 15, fontWeight: 600, color: "#111", margin: "0 0 12px" }}>Recent Activity</h2>
+                <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+                  {items.slice(0, 5).map((b, i) => (
+                    <div key={b.id}
+                      onClick={() => navigate(`/app/borrower/${b.id}`)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 12, padding: "10px 16px",
+                        borderBottom: i < Math.min(items.length, 5) - 1 ? "1px solid #f3f4f6" : "none",
+                        cursor: "pointer", transition: "background 0.1s",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
+                    >
+                      <div style={{
+                        width: 28, height: 28, borderRadius: "50%", background: "#f3f4f6",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 10, fontWeight: 600, color: "#374151", flexShrink: 0,
+                      }}>
+                        {b.firstName[0]}{b.lastName[0]}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 500, color: "#111" }}>{b.firstName} {b.lastName}</p>
+                        <p style={{ fontSize: 11, color: "#9ca3af" }}>
+                          {b.type === "submitted"
+                            ? `Application submitted${b.docsReceived > 0 ? ` — ${b.docsReceived} docs` : ""}`
+                            : `${b.docsReceived}/${b.docsRequested} docs uploaded`}
+                        </p>
+                      </div>
+                      <span style={{
+                        fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 4, flexShrink: 0,
+                        background: b.type === "submitted" ? "#f0fdf4" : b.type === "in_progress" ? "#fef3c7" : "#eff6ff",
+                        color: b.type === "submitted" ? "#16a34a" : b.type === "in_progress" ? "#d97706" : "#3b82f6",
+                      }}>
+                        {b.type === "submitted" ? "Submitted" : b.type === "in_progress" ? "In Progress" : "Link Sent"}
+                      </span>
+                      <ChevronRight style={{ width: 14, height: 14, color: "#d1d5db", flexShrink: 0 }} />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            );
+          })()}
 
           {/* Recent Leads */}
           <div style={{ marginTop: 28 }}>

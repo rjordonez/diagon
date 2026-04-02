@@ -11,7 +11,9 @@ import { AuthAddLeadModal } from "./components/AuthAddLeadModal";
 const NAV_ITEMS = [
   { to: "/app", icon: LayoutDashboard, label: "Home", end: true },
   { to: "/app/leads", icon: Kanban, label: "Leads" },
+  { to: "/app/messages", icon: MessageSquare, label: "Messages" },
   { to: "/app/templates", icon: FileText, label: "Templates" },
+  { to: "/app/automations", icon: Send, label: "Automations" },
 ];
 
 export const AuthCRMLayout = () => {
@@ -45,7 +47,7 @@ export const AuthCRMLayout = () => {
   }, [user]);
 
   const location = useLocation();
-  const isFullBleedPage = location.pathname === "/app" || location.pathname === "/app/ai" || location.pathname === "/app/leads" || location.pathname === "/app/pipeline" || location.pathname.startsWith("/app/borrower/") || location.pathname.startsWith("/app/templates") || location.pathname === "/app/settings";
+  const isFullBleedPage = location.pathname === "/app" || location.pathname === "/app/ai" || location.pathname === "/app/leads" || location.pathname === "/app/pipeline" || location.pathname.startsWith("/app/borrower/") || location.pathname.startsWith("/app/templates") || location.pathname === "/app/settings" || location.pathname.startsWith("/app/automations") || location.pathname.startsWith("/app/messages");
   const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
 
   const loadConversations = async () => {
@@ -273,26 +275,43 @@ function ChatSectionHeader({ chatsOpen, onToggle, onNewChat }: { chatsOpen: bool
 function ChatLinks({ chats, setSidebarOpen }: { chats: { id: string; title: string }[]; setSidebarOpen: (v: boolean) => void }) {
   const [searchParams] = useSearchParams();
   const activeChat = searchParams.get("c");
+  const navigate = useNavigate();
+
+  const handleDelete = async (e: React.MouseEvent, chatId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.confirm("Delete this conversation?")) return;
+    await supabase.from("ai_messages").delete().eq("conversation_id", chatId);
+    await supabase.from("ai_conversations").delete().eq("id", chatId);
+    if (activeChat === chatId) navigate("/app");
+  };
 
   return (
     <>
       {chats.map((chat) => {
         const isActive = activeChat === chat.id;
         return (
-          <NavLink
-            key={chat.id}
-            to={`/app/ai?c=${chat.id}`}
-            onClick={() => setSidebarOpen(false)}
-            className={cn(
-              "flex items-center gap-2.5 h-8 px-3 rounded-lg text-[13px] transition-colors",
-              isActive
-                ? "bg-muted text-foreground font-medium"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-            )}
-          >
-            <MessageSquare className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-            <span className="truncate flex-1">{chat.title}</span>
-          </NavLink>
+          <div key={chat.id} className="group relative">
+            <NavLink
+              to={`/app/ai?c=${chat.id}`}
+              onClick={() => setSidebarOpen(false)}
+              className={cn(
+                "flex items-center gap-2.5 h-8 px-3 rounded-lg text-[13px] transition-colors",
+                isActive
+                  ? "bg-muted text-foreground font-medium"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              )}
+            >
+              <MessageSquare className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+              <span className="truncate flex-1">{chat.title}</span>
+            </NavLink>
+            <button
+              onClick={(e) => handleDelete(e, chat.id)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </div>
         );
       })}
     </>

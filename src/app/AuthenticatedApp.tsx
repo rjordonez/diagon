@@ -14,6 +14,8 @@ import { StorePage } from "./pages/StorePage";
 import { TemplatesPage } from "./pages/TemplatesPage";
 import { TemplateBuilderPage } from "./pages/TemplateBuilderPage";
 import { AuthSettingsPage } from "./pages/AuthSettingsPage";
+import { AutomationsPage } from "./pages/AutomationsPage";
+import { MessagingPage } from "./pages/MessagingPage";
 import NotFound from "@/demo/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +37,8 @@ const AuthenticatedApp = () => (
           <Route path="templates" element={<TemplatesPage />} />
           <Route path="templates/new" element={<TemplateBuilderPage />} />
           <Route path="templates/:id/edit" element={<TemplateBuilderPage />} />
+          <Route path="automations" element={<AutomationsPage />} />
+          <Route path="messages" element={<MessagingPage />} />
           <Route path="settings" element={<AuthSettingsPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { User, Bell, Zap, ChevronRight } from "lucide-react";
+import { User, Bell, ChevronRight } from "lucide-react";
 
 export const AuthSettingsPage = () => {
   const { user } = useAuth();
@@ -18,7 +18,6 @@ export const AuthSettingsPage = () => {
     campaignStatus: true,
   });
 
-  const [stlMode, setStlMode] = useState("auto");
 
   const inputStyle: React.CSSProperties = {
     width: "100%", height: 36, borderRadius: 8, border: "1px solid #e5e7eb",
@@ -92,7 +91,6 @@ export const AuthSettingsPage = () => {
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               {sectionBtn("profile", "Profile", User)}
               {sectionBtn("notifications", "Notifications", Bell)}
-              {sectionBtn("speed-to-lead", "Speed to Lead", Zap)}
             </div>
           </div>
 
@@ -156,7 +154,7 @@ export const AuthSettingsPage = () => {
                   {([
                     { key: "docUploaded" as const, label: "New document uploaded", desc: "When a borrower uploads a new document" },
                     { key: "aiFlag" as const, label: "AI flag raised", desc: "When AI verification finds an issue" },
-                    { key: "stlReply" as const, label: "Speed to Lead reply", desc: "When a borrower replies to an automated message" },
+                    { key: "stlReply" as const, label: "Diagon reply received", desc: "When a borrower replies to a Diagon message" },
                     { key: "stageChanged" as const, label: "Stage changed", desc: "When a lead moves to a new pipeline stage" },
                     { key: "campaignStatus" as const, label: "Campaign status", desc: "When a marketing campaign status changes" },
                   ]).map((item, i, arr) => (
@@ -176,43 +174,6 @@ export const AuthSettingsPage = () => {
               </div>
             )}
 
-            {activeSection === "speed-to-lead" && (
-              <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 24 }}>
-                <h3 style={{ fontSize: 15, fontWeight: 600, color: "#111", margin: "0 0 4px" }}>Speed to Lead</h3>
-                <p style={{ fontSize: 12, color: "#9ca3af", margin: "0 0 20px" }}>Configure how automated follow-ups are handled</p>
-
-                <label style={labelStyle}>Default Mode</label>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {([
-                    { value: "auto", label: "Fully Automatic", desc: "Messages sent immediately without approval" },
-                    { value: "approve", label: "LO Approves", desc: "AI drafts messages, you review before sending" },
-                    { value: "manual", label: "LO Sends Manually", desc: "You write and send all messages yourself" },
-                  ]).map((opt) => (
-                    <label
-                      key={opt.value}
-                      style={{
-                        display: "flex", alignItems: "flex-start", gap: 12,
-                        padding: "12px 14px", borderRadius: 8,
-                        border: stlMode === opt.value ? "1px solid #111" : "1px solid #e5e7eb",
-                        background: stlMode === opt.value ? "#f9fafb" : "white",
-                        cursor: "pointer", transition: "border-color 0.15s",
-                      }}
-                    >
-                      <input
-                        type="radio" name="stl-mode" value={opt.value}
-                        checked={stlMode === opt.value}
-                        onChange={() => setStlMode(opt.value)}
-                        style={{ marginTop: 2, accentColor: "#111" }}
-                      />
-                      <div>
-                        <p style={{ fontSize: 13, fontWeight: 500, color: "#111" }}>{opt.label}</p>
-                        <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{opt.desc}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

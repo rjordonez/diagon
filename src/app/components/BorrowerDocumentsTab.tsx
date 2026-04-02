@@ -1,15 +1,23 @@
-import { useState } from "react";
-import { Link2, Copy, Check, FileText, Upload, ExternalLink, HelpCircle, ChevronDown, ChevronRight } from "lucide-react";
+import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { Link2, Copy, Check, FileText, Upload, ExternalLink, HelpCircle, ChevronDown, ChevronRight, Bot } from "lucide-react";
 import { cn } from "@/demo/lib/utils";
 import { useTemplates, useUploadLink, useCreateUploadLink, useUploadItems, type UploadItem } from "../hooks/useTemplateData";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Borrower {
   id: string;
   firstName: string;
   lastName: string;
+  diagonSequence?: string | null;
 }
 
 export const BorrowerDocumentsTab = ({ borrower }: { borrower: Borrower }) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: templates = [] } = useTemplates();
   const { data: uploadLink, isLoading: linkLoading } = useUploadLink(borrower.id);
   const createUploadLink = useCreateUploadLink();
@@ -17,6 +25,41 @@ export const BorrowerDocumentsTab = ({ borrower }: { borrower: Borrower }) => {
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [selectedAddonId, setSelectedAddonId] = useState("");
   const [copied, setCopied] = useState(false);
+  const [startingDiagon, setStartingDiagon] = useState(false);
+  const diagonFired = useRef(false);
+
+  const handleStartDiagon = async () => {
+    if (!user || diagonFired.current) return;
+    diagonFired.current = true;
+    setStartingDiagon(true);
+
+    // Get LO name from user profile
+    const loFirstName = user.user_metadata?.full_name?.split(" ")[0] || "your loan officer";
+
+    const msg1 = `Hey ${borrower.firstName}! It's Diagon, ${loFirstName}'s assistant. He asked me to reach out since you guys just spoke! I'll be your point of contact throughout the loan process so feel free to ask me anything along the way!`;
+    const msg2 = uploadLink
+      ? `First things first, I'm going to send over a secure link to get your documents uploaded. Does that work for you?`
+      : `I just wanted to check in and see if you're ready to get started on your loan application. Does that work for you?`;
+
+    // Insert intro messages
+    await supabase.from("messages").insert([
+      { user_id: user.id, borrower_id: borrower.id, direction: "outbound", recipient: "", body: msg1, status: "queued" },
+      { user_id: user.id, borrower_id: borrower.id, direction: "outbound", recipient: "", body: msg2, status: "queued" },
+    ]);
+
+    // Update borrower with Diagon sequence state + pending active status
+    await supabase.from("borrowers").update({
+      diagon_sequence: "intro_sent",
+      is_active_lead: "pending",
+      ...(uploadLink ? { diagon_upload_link_id: uploadLink.id } : {}),
+    }).eq("id", borrower.id);
+
+    queryClient.invalidateQueries({ queryKey: ["borrowers"] });
+    queryClient.invalidateQueries({ queryKey: ["store_messages"] });
+
+    setStartingDiagon(false);
+    navigate(`/app/messages?b=${borrower.id}`);
+  };
 
   const baseTemplates = templates.filter((t) => !t.isAddon);
   const addonTemplates = templates.filter((t) => t.isAddon);
@@ -66,10 +109,16 @@ export const BorrowerDocumentsTab = ({ borrower }: { borrower: Borrower }) => {
                 </select>
               </div>
             )}
-            <button onClick={handleGenerateLink} disabled={!selectedTemplateId || createUploadLink.isPending}
-              className="h-10 px-4 rounded-lg bg-foreground text-background text-sm font-medium hover:bg-foreground/90 transition-colors disabled:opacity-50 flex items-center gap-1.5">
-              <Link2 className="h-3.5 w-3.5" /> {createUploadLink.isPending ? "Creating..." : "Generate Link"}
-            </button>
+            <div className="flex gap-2">
+              <button onClick={handleGenerateLink} disabled={!selectedTemplateId || createUploadLink.isPending}
+                className="h-10 px-4 rounded-lg bg-foreground text-background text-sm font-medium hover:bg-foreground/90 transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                <Link2 className="h-3.5 w-3.5" /> {createUploadLink.isPending ? "Creating..." : "Generate Link"}
+              </button>
+              <button onClick={handleStartDiagon} disabled={startingDiagon}
+                className="h-10 px-4 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                <Bot className="h-3.5 w-3.5" /> {startingDiagon ? "Starting..." : "Start Diagon (No Link)"}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -107,6 +156,11 @@ export const BorrowerDocumentsTab = ({ borrower }: { borrower: Borrower }) => {
             className="h-10 px-3 rounded-lg border border-border text-sm hover:bg-muted transition-colors shrink-0 flex items-center">
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
+          <button onClick={handleStartDiagon} disabled={startingDiagon || borrower.diagonSequence === "opted_out"}
+            className="h-10 px-4 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors shrink-0 flex items-center gap-1.5 disabled:opacity-50">
+            <Bot className="h-3.5 w-3.5" />
+            {startingDiagon ? "Starting..." : borrower.diagonSequence ? "Diagon Active" : "Start Diagon"}
+          </button>
         </div>
       </div>
 

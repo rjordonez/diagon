@@ -6,7 +6,7 @@ create table public.messages (
   direction text not null check (direction in ('outbound', 'inbound')),
   recipient text not null,
   body text not null,
-  status text default 'queued' check (status in ('queued', 'sent', 'delivered', 'failed')),
+  status text default 'queued' check (status in ('queued', 'sending', 'sent', 'delivered', 'failed')),
   sent_at timestamptz,
   created_at timestamptz default now()
 );
@@ -327,3 +327,33 @@ ALTER TABLE public.template_items ADD COLUMN IF NOT EXISTS item_key text;       
 ALTER TABLE public.template_items ADD COLUMN IF NOT EXISTS condition_key text;                 -- show only if item with this key = 'yes'
 ALTER TABLE public.template_items ADD COLUMN IF NOT EXISTS input_type text DEFAULT 'upload';   -- 'upload' or 'text'
 ALTER TABLE public.template_questions ADD COLUMN IF NOT EXISTS section text;
+
+-- ─────────────────────────────────────────────
+-- Diagon AI Agent columns
+-- ─────────────────────────────────────────────
+-- is_active_lead: null (no invite), 'pending' (invited, awaiting), 'true' (confirmed), 'false' (opted out)
+ALTER TABLE public.borrowers ADD COLUMN IF NOT EXISTS is_active_lead text DEFAULT null;
+ALTER TABLE public.borrowers ADD COLUMN IF NOT EXISTS birthday date DEFAULT null;
+ALTER TABLE public.borrowers ADD COLUMN IF NOT EXISTS loan_type text DEFAULT null;
+ALTER TABLE public.borrowers ADD COLUMN IF NOT EXISTS diagon_sequence text DEFAULT null;
+ALTER TABLE public.borrowers ADD COLUMN IF NOT EXISTS diagon_upload_link_id uuid REFERENCES public.upload_links(id);
+
+-- Allow recipient to be empty for Diagon-generated messages (backend fills phone from borrower)
+ALTER TABLE public.messages ALTER COLUMN recipient SET DEFAULT '';
+
+-- Function to update borrower stage when application is submitted (bypasses RLS)
+create or replace function public.submit_application_update_stage(p_application_id uuid)
+returns void as $$
+declare
+  v_borrower_id uuid;
+begin
+  select ul.borrower_id into v_borrower_id
+  from borrower_applications ba
+  join upload_links ul on ul.id = ba.upload_link_id
+  where ba.id = p_application_id;
+
+  if v_borrower_id is not null then
+    update borrowers set stage = 'app-submitted' where id = v_borrower_id;
+  end if;
+end;
+$$ language plpgsql security definer;

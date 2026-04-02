@@ -24,6 +24,7 @@ export interface Borrower {
   email: string;
   phone: string;
   loanAmount: number;
+  loanType: string;
   loanPurpose: string;
   propertyAddress?: string;
   stage: PipelineStage;
@@ -41,7 +42,11 @@ export interface Borrower {
   assignedLO: string;
   notes: string;
   createdAt: string;
+  birthday: string | null;
   speedToLeadEnabled: boolean;
+  isActiveLead: boolean | null | "pending";
+  diagonSequence: string | null;
+  diagonUploadLinkId: string | null;
 }
 
 export const STAGE_CONFIG: Record<PipelineStage, { label: string; color: string }> = {
@@ -93,6 +98,7 @@ export const MOCK_BORROWERS: Borrower[] = [
     email: "marcus.webb@email.com",
     phone: "(415) 555-0142",
     loanAmount: 880000,
+    loanType: "Conventional",
     loanPurpose: "Purchase",
     propertyAddress: "2847 Oak Valley Dr, San Jose, CA 95132",
     stage: "in-review",
@@ -110,7 +116,11 @@ export const MOCK_BORROWERS: Borrower[] = [
     assignedLO: "Sarah Chen",
     notes: "Strong file. Pre-approved by underwriting.",
     createdAt: "2026-02-10",
+    birthday: null,
     speedToLeadEnabled: false,
+    isActiveLead: null,
+    diagonSequence: null,
+    diagonUploadLinkId: null,
   },
   {
     id: "2",
@@ -119,6 +129,7 @@ export const MOCK_BORROWERS: Borrower[] = [
     email: "derek.fontaine@email.com",
     phone: "(510) 555-0198",
     loanAmount: 1600000,
+    loanType: "Conventional",
     loanPurpose: "Purchase",
     propertyAddress: "1234 Johnson St, San Francisco, CA 94182",
     stage: "app-submitted",
@@ -136,7 +147,11 @@ export const MOCK_BORROWERS: Borrower[] = [
     assignedLO: "Sarah Chen",
     notes: "Jumbo loan. Awaiting 2 more docs.",
     createdAt: "2026-02-15",
+    birthday: null,
     speedToLeadEnabled: false,
+    isActiveLead: null,
+    diagonSequence: null,
+    diagonUploadLinkId: null,
   },
   {
     id: "3",
@@ -145,6 +160,7 @@ export const MOCK_BORROWERS: Borrower[] = [
     email: "priya.nair@email.com",
     phone: "(408) 555-0267",
     loanAmount: 540000,
+    loanType: "Conventional",
     loanPurpose: "Refinance",
     propertyAddress: "918 Elm Creek Way, Sunnyvale, CA 94086",
     stage: "conditionally-approved",
@@ -162,7 +178,11 @@ export const MOCK_BORROWERS: Borrower[] = [
     assignedLO: "Sarah Chen",
     notes: "Rate lock expiring in 10 days.",
     createdAt: "2026-01-28",
+    birthday: null,
     speedToLeadEnabled: false,
+    isActiveLead: null,
+    diagonSequence: null,
+    diagonUploadLinkId: null,
   },
   {
     id: "4",
@@ -173,6 +193,7 @@ export const MOCK_BORROWERS: Borrower[] = [
     email: "liam.torres@email.com",
     phone: "(650) 555-0321",
     loanAmount: 1200000,
+    loanType: "Jumbo QM",
     loanPurpose: "Purchase",
     stage: "app-in-progress",
     leadTemp: "warm",
@@ -189,7 +210,11 @@ export const MOCK_BORROWERS: Borrower[] = [
     assignedLO: "Sarah Chen",
     notes: "Meeting booked for Thursday.",
     createdAt: "2026-02-20",
+    birthday: null,
     speedToLeadEnabled: true,
+    isActiveLead: null,
+    diagonSequence: null,
+    diagonUploadLinkId: null,
   },
   {
     id: "5",
@@ -198,6 +223,7 @@ export const MOCK_BORROWERS: Borrower[] = [
     email: "natasha.o@email.com",
     phone: "(925) 555-0456",
     loanAmount: 720000,
+    loanType: "FHA",
     loanPurpose: "Purchase",
     stage: "app-sent",
     leadTemp: "warm",
@@ -214,7 +240,11 @@ export const MOCK_BORROWERS: Borrower[] = [
     assignedLO: "Sarah Chen",
     notes: "Email opened; no app started yet.",
     createdAt: "2026-02-22",
+    birthday: null,
     speedToLeadEnabled: true,
+    isActiveLead: null,
+    diagonSequence: null,
+    diagonUploadLinkId: null,
   },
   {
     id: "6",
@@ -223,6 +253,7 @@ export const MOCK_BORROWERS: Borrower[] = [
     email: "j.whitfield@email.com",
     phone: "(707) 555-0589",
     loanAmount: 430000,
+    loanType: "VA",
     loanPurpose: "Purchase",
     stage: "contacted",
     leadTemp: "warm",
@@ -239,7 +270,11 @@ export const MOCK_BORROWERS: Borrower[] = [
     assignedLO: "Sarah Chen",
     notes: "Responded to first text; interested in FHA.",
     createdAt: "2026-02-25",
+    birthday: null,
     speedToLeadEnabled: true,
+    isActiveLead: null,
+    diagonSequence: null,
+    diagonUploadLinkId: null,
   },
   {
     id: "7",
@@ -248,6 +283,7 @@ export const MOCK_BORROWERS: Borrower[] = [
     email: "c.russo@email.com",
     phone: "(831) 555-0712",
     loanAmount: 950000,
+    loanType: "DSCR",
     loanPurpose: "Cash-Out Refinance",
     stage: "new-lead",
     leadTemp: "cold",
@@ -264,7 +300,11 @@ export const MOCK_BORROWERS: Borrower[] = [
     assignedLO: "Sarah Chen",
     notes: "No response after 4 outreach attempts.",
     createdAt: "2026-02-18",
+    birthday: null,
     speedToLeadEnabled: true,
+    isActiveLead: null,
+    diagonSequence: null,
+    diagonUploadLinkId: null,
   },
   {
     id: "8",
@@ -273,6 +313,7 @@ export const MOCK_BORROWERS: Borrower[] = [
     email: "anand.p@email.com",
     phone: "(209) 555-0834",
     loanAmount: 310000,
+    loanType: "Conventional",
     loanPurpose: "Purchase",
     stage: "new-lead",
     leadTemp: "cold",
@@ -289,7 +330,11 @@ export const MOCK_BORROWERS: Borrower[] = [
     assignedLO: "Sarah Chen",
     notes: "Added 22 days ago; no activity.",
     createdAt: "2026-02-04",
+    birthday: null,
     speedToLeadEnabled: false,
+    isActiveLead: null,
+    diagonSequence: null,
+    diagonUploadLinkId: null,
   },
   {
     id: "9",
@@ -298,6 +343,7 @@ export const MOCK_BORROWERS: Borrower[] = [
     email: "g.marsh@email.com",
     phone: "(530) 555-0967",
     loanAmount: 670000,
+    loanType: "Conventional",
     loanPurpose: "Refinance",
     stage: "on-hold",
     leadTemp: "cold",
@@ -314,7 +360,11 @@ export const MOCK_BORROWERS: Borrower[] = [
     assignedLO: "Sarah Chen",
     notes: "No activity in 30 days; paused file.",
     createdAt: "2026-01-15",
+    birthday: null,
     speedToLeadEnabled: false,
+    isActiveLead: null,
+    diagonSequence: null,
+    diagonUploadLinkId: null,
   },
   {
     id: "10",
@@ -323,6 +373,7 @@ export const MOCK_BORROWERS: Borrower[] = [
     email: "elena.v@email.com",
     phone: "(415) 555-1100",
     loanAmount: 495000,
+    loanType: "Conventional",
     loanPurpose: "Purchase",
     propertyAddress: "456 Pine St, Oakland, CA 94612",
     stage: "clear-to-close",
@@ -340,7 +391,11 @@ export const MOCK_BORROWERS: Borrower[] = [
     assignedLO: "Sarah Chen",
     notes: "All conditions cleared. Closing scheduled next week.",
     createdAt: "2026-01-10",
+    birthday: null,
     speedToLeadEnabled: false,
+    isActiveLead: null,
+    diagonSequence: null,
+    diagonUploadLinkId: null,
   },
 ];
 
@@ -357,6 +412,10 @@ export const LEAD_SOURCES = [
 ];
 
 export const LOAN_PURPOSES = ["Purchase", "Refinance", "Cash-Out Refinance", "Construction"];
+
+export const LOAN_TYPES_QM = ["Conventional", "FHA", "VA", "USDA", "Jumbo QM"];
+export const LOAN_TYPES_NON_QM = ["DSCR", "Bank Statement / Alt Doc", "Asset Depletion", "Full Doc Non-QM", "1099", "40-Year", "WVOE"];
+export const LOAN_TYPES = [...LOAN_TYPES_QM, ...LOAN_TYPES_NON_QM];
 
 export interface ActivityEntry {
   id: string;

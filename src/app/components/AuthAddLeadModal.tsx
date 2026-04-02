@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import { LEAD_SOURCES, LOAN_PURPOSES } from "@/demo/crm/data/mockData";
+import { LEAD_SOURCES, LOAN_PURPOSES, LOAN_TYPES } from "@/demo/crm/data/mockData";
 import { useAddBorrower } from "../hooks/useSupabaseData";
 
 export const AuthAddLeadModal = ({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) => {
   const [form, setForm] = useState({
-    firstName: "", lastName: "", email: "", phone: "",
-    loanPurpose: "", loanAmount: "", leadSource: "", notes: "",
-    speedToLead: false,
+    firstName: "", lastName: "", email: "", phone: "", birthday: "",
+    loanType: "", loanPurpose: "", loanAmount: "", leadSource: "", notes: "",
   });
 
   const addBorrower = useAddBorrower();
@@ -15,8 +14,8 @@ export const AuthAddLeadModal = ({ open, onClose, onCreated }: { open: boolean; 
   const update = (field: string, value: string | boolean) => setForm((p) => ({ ...p, [field]: value }));
 
   const reset = () => setForm({
-    firstName: "", lastName: "", email: "", phone: "",
-    loanPurpose: "", loanAmount: "", leadSource: "", notes: "",
+    firstName: "", lastName: "", email: "", phone: "", birthday: "",
+    loanType: "", loanPurpose: "", loanAmount: "", leadSource: "", notes: "",
     speedToLead: false,
   });
 
@@ -28,11 +27,12 @@ export const AuthAddLeadModal = ({ open, onClose, onCreated }: { open: boolean; 
       lastName: form.lastName,
       email: form.email,
       phone: form.phone,
+      birthday: form.birthday || undefined,
+      loanType: form.loanType || undefined,
       loanPurpose: form.loanPurpose,
       loanAmount: parseInt(form.loanAmount.replace(/[^0-9]/g, "")) || 0,
       leadSource: form.leadSource,
       notes: form.notes,
-      speedToLead: form.speedToLead,
     });
 
     reset();
@@ -75,16 +75,35 @@ export const AuthAddLeadModal = ({ open, onClose, onCreated }: { open: boolean; 
             <Field label="Last Name" required value={form.lastName} onChange={(v) => update("lastName", v)} />
           </div>
           <Field label="Email" required value={form.email} onChange={(v) => update("email", v)} type="email" />
-          <Field label="Phone" value={form.phone} onChange={(v) => update("phone", v)} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Phone" value={form.phone} onChange={(v) => update("phone", v)} />
+            <Field label="Birthday" value={form.birthday} onChange={(v) => update("birthday", v)} type="date" />
+          </div>
 
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
-              Loan Purpose<span className="text-foreground ml-0.5">*</span>
-            </label>
-            <select value={form.loanPurpose} onChange={(e) => update("loanPurpose", e.target.value)} className="form-input">
-              <option value="">Select...</option>
-              {LOAN_PURPOSES.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                Loan Type
+              </label>
+              <select value={form.loanType} onChange={(e) => update("loanType", e.target.value)} className="form-input">
+                <option value="">Select...</option>
+                <optgroup label="QM Programs">
+                  {["Conventional", "FHA", "VA", "USDA", "Jumbo QM"].map((t) => <option key={t} value={t}>{t}</option>)}
+                </optgroup>
+                <optgroup label="Non-QM Programs">
+                  {["DSCR", "Bank Statement / Alt Doc", "Asset Depletion", "Full Doc Non-QM", "1099", "40-Year", "WVOE"].map((t) => <option key={t} value={t}>{t}</option>)}
+                </optgroup>
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                Loan Purpose<span className="text-foreground ml-0.5">*</span>
+              </label>
+              <select value={form.loanPurpose} onChange={(e) => update("loanPurpose", e.target.value)} className="form-input">
+                <option value="">Select...</option>
+                {LOAN_PURPOSES.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
           </div>
 
           <Field label="Est. Loan Amount" value={form.loanAmount} onChange={(v) => update("loanAmount", v)} placeholder="$500,000" />
@@ -104,9 +123,7 @@ export const AuthAddLeadModal = ({ open, onClose, onCreated }: { open: boolean; 
             <textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} rows={3} className="form-input resize-none" placeholder="Internal notes..." />
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={form.speedToLead} onChange={(e) => update("speedToLead", e.target.checked)} className="w-4 h-4 accent-foreground rounded" />
-            <span className="text-sm">Enable Speed to Lead (start follow-up sequence immediately)</span>
+          <label className="hidden">
           </label>
         </div>
 

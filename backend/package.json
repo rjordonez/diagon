@@ -10,7 +10,8 @@
   "dependencies": {
     "@photon-ai/imessage-kit": "latest",
     "@supabase/supabase-js": "^2",
-    "dotenv": "^16"
+    "dotenv": "^16",
+    "openai": "^4"
   },
   "devDependencies": {
     "@types/node": "^22",

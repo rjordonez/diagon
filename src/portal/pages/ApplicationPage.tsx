@@ -1,13 +1,13 @@
-import { useState, useRef, useMemo } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Check, Loader2, Upload, FileText, Circle } from "lucide-react";
-import { cn } from "@/demo/lib/utils";
+import { useState, useRef, useMemo, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, ArrowRight, Check, Loader2, Upload, FileText, Circle, AlertTriangle, X as XIcon } from "lucide-react";
 import {
   useMyApplications,
   useApplication,
   useSubmitApplication,
 } from "../hooks/usePortalData";
 import { usePublicUploadItems, useSubmitUpload, type PublicUploadItem } from "@/hooks/usePublicUpload";
+import { useExtraction } from "../hooks/useExtractionContext";
 
 export const ApplicationPage = () => {
   const { id: paramId } = useParams<{ id: string }>();
@@ -44,35 +44,54 @@ export const ApplicationPage = () => {
   }, [uploadItems]);
 
   const isSubmitted = app?.status === "submitted" || app?.status === "quoted";
+  const { extractedFields, resolveDiscrepancy, addExtraction } = useExtraction();
 
-  if (isLoading) return <div className="p-6"><p className="text-sm text-muted-foreground">Loading...</p></div>;
+  // Auto-fill text fields from extraction
+  useEffect(() => {
+    const allItems = sections.flatMap((s) => s.docs);
+    for (const item of allItems) {
+      const ext = extractedFields[item.templateItemId];
+      if (!ext) continue;
+      const current = textValues[item.id] || "";
+      if (!current && ext.extractedValue) {
+        // Auto-fill empty field
+        setTextValues((prev) => ({ ...prev, [item.id]: ext.extractedValue }));
+      } else if (current && current !== ext.extractedValue && ext.status === "pending") {
+        // Mark discrepancy
+        addExtraction([{ ...ext, currentValue: current, hasDiscrepancy: true }]);
+      }
+    }
+  }, [extractedFields, sections]);
+
+  if (isLoading) return <p style={{ fontSize: 14, color: "#9ca3af", textAlign: "center", padding: 48 }}>Loading...</p>;
 
   if (!app) return (
-    <div className="flex items-center justify-center h-full p-6">
-      <div className="text-center">
-        <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-        <h2 className="text-lg font-semibold mb-1">No Application Yet</h2>
-        <p className="text-sm text-muted-foreground">Your loan officer will send you an invitation link to get started.</p>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", padding: 32 }}>
+      <div style={{ textAlign: "center" }}>
+        <FileText style={{ width: 40, height: 40, color: "#d1d5db", margin: "0 auto 12px" }} />
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "#111", marginBottom: 6 }}>No Application Yet</h2>
+        <p style={{ fontSize: 14, color: "#9ca3af" }}>Your loan officer will send you an invitation link to get started.</p>
       </div>
     </div>
   );
 
   if (isSubmitted) return (
-    <div className="flex items-center justify-center h-full p-6">
-      <div className="text-center">
-        <div className="h-16 w-16 rounded-full bg-foreground/10 flex items-center justify-center mx-auto mb-4">
-          <Check className="h-7 w-7 text-foreground" />
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", padding: 32 }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+          <Check style={{ width: 28, height: 28, color: "#16a34a" }} />
         </div>
-        <h2 className="text-lg font-semibold mb-1">Application Submitted</h2>
-        <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">Your loan officer is reviewing your application.</p>
-        <Link to="/portal/quote" className="inline-flex items-center gap-1.5 h-10 px-5 rounded-lg bg-foreground text-background text-sm font-medium hover:bg-foreground/90 transition-colors">
-          View Quote <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "#111", marginBottom: 6 }}>Application Submitted</h2>
+        <p style={{ fontSize: 14, color: "#9ca3af", maxWidth: 340, margin: "0 auto 20px" }}>Your loan officer is reviewing your application.</p>
+        <button onClick={() => navigate("/portal/quote")}
+          style={{ height: 40, padding: "0 20px", borderRadius: 8, background: "#3b82f6", color: "white", border: "none", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>
+          View Quote <ArrowRight style={{ width: 14, height: 14 }} />
+        </button>
       </div>
     </div>
   );
 
-  if (sections.length === 0) return <div className="p-6"><p className="text-sm text-muted-foreground">Loading...</p></div>;
+  if (sections.length === 0) return <p style={{ fontSize: 14, color: "#9ca3af", textAlign: "center", padding: 48 }}>Loading...</p>;
 
   const safeStep = Math.min(currentStep, sections.length - 1);
   const currentSection = sections[safeStep];
@@ -85,83 +104,69 @@ export const ApplicationPage = () => {
   };
 
   return (
-    <div className="flex h-full min-h-0">
-      {/* Left: Section stepper */}
-      <div className="w-56 shrink-0 border-r border-border p-4 hidden md:flex flex-col min-h-0">
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Sections</p>
-        <div className="space-y-0.5 flex-1">
+    <div style={{ display: "flex", height: "100%" }}>
+      {/* Left stepper */}
+      <div style={{ width: 220, flexShrink: 0, borderRight: "1px solid #e5e7eb", padding: 16, display: "flex", flexDirection: "column", background: "white" }}>
+        <p style={{ fontSize: 10, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 }}>Sections</p>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
           {sections.map((sec, i) => {
             const isActive = i === safeStep;
             const isComplete = sec.uploaded === sec.total && sec.total > 0;
             const isGateSkipped = sec.gate && gateAnswers[sec.gate.itemKey!] === "no";
-
             return (
               <button key={i} onClick={() => setCurrentStep(i)}
-                className={cn(
-                  "w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-colors text-xs",
-                  isActive ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                )}>
-                {isComplete || isGateSkipped ? (
-                  <Check className="h-3.5 w-3.5 text-foreground shrink-0" />
-                ) : isActive ? (
-                  <Circle className="h-3.5 w-3.5 fill-foreground text-foreground shrink-0" />
-                ) : (
-                  <Circle className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
-                )}
-                <span className="truncate">{sec.title}</span>
+                style={{
+                  display: "flex", alignItems: "center", gap: 8, padding: "8px 10px",
+                  borderRadius: 8, fontSize: 12, textAlign: "left", width: "100%",
+                  background: isActive ? "#f3f4f6" : "transparent",
+                  color: isActive ? "#111" : "#6b7280", fontWeight: isActive ? 600 : 400,
+                  border: "none", cursor: "pointer", fontFamily: "inherit",
+                }}>
+                {isComplete || isGateSkipped
+                  ? <Check style={{ width: 14, height: 14, color: "#16a34a", flexShrink: 0 }} />
+                  : isActive
+                    ? <Circle style={{ width: 14, height: 14, fill: "#111", color: "#111", flexShrink: 0 }} />
+                    : <Circle style={{ width: 14, height: 14, color: "#d1d5db", flexShrink: 0 }} />}
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sec.title}</span>
               </button>
             );
           })}
         </div>
-
-        <div className="pt-4 border-t border-border">
-          <p className="text-[10px] text-muted-foreground">{completedDocs}/{allDocs.length} documents uploaded</p>
-          <div className="h-1.5 bg-muted rounded-full mt-1.5 overflow-hidden">
-            <div className="h-full bg-foreground rounded-full transition-all"
-              style={{ width: allDocs.length > 0 ? `${(completedDocs / allDocs.length) * 100}%` : "0%" }} />
+        <div style={{ paddingTop: 16, borderTop: "1px solid #e5e7eb" }}>
+          <p style={{ fontSize: 10, color: "#9ca3af" }}>{completedDocs}/{allDocs.length} documents uploaded</p>
+          <div style={{ height: 4, background: "#e5e7eb", borderRadius: 2, marginTop: 6, overflow: "hidden" }}>
+            <div style={{ height: "100%", background: "#3b82f6", borderRadius: 2, transition: "width 0.3s", width: allDocs.length > 0 ? `${(completedDocs / allDocs.length) * 100}%` : "0%" }} />
           </div>
         </div>
       </div>
 
-      {/* Right: Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Right content */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         {/* Section header */}
-        <div className="px-6 py-4 border-b border-border shrink-0">
-          <h2 className="text-lg font-semibold">{currentSection.title}</h2>
+        <div style={{ padding: "16px 24px", borderBottom: "1px solid #e5e7eb", flexShrink: 0, background: "white" }}>
+          <h2 style={{ fontSize: 17, fontWeight: 600, color: "#111" }}>{currentSection.title}</h2>
           {!currentSection.gate && (
-            <p className="text-xs text-muted-foreground mt-0.5">{currentSection.uploaded}/{currentSection.total} completed</p>
+            <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>{currentSection.uploaded}/{currentSection.total} completed</p>
           )}
         </div>
 
-        {/* Section items */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          <div className="max-w-2xl space-y-4">
-            {/* Mobile step indicator */}
-            <div className="md:hidden mb-4">
-              <p className="text-xs text-muted-foreground mb-2">Section {safeStep + 1} of {sections.length}</p>
-              <div className="flex items-center gap-1">
-                {sections.map((_, i) => (
-                  <button key={i} onClick={() => setCurrentStep(i)}
-                    className={cn("h-1.5 flex-1 rounded-full transition-colors", i <= safeStep ? "bg-foreground" : "bg-muted")} />
-                ))}
-              </div>
-            </div>
-
+        {/* Items */}
+        <div style={{ flex: 1, overflow: "auto", padding: 24 }}>
+          <div style={{ maxWidth: 600, display: "flex", flexDirection: "column", gap: 14 }}>
             {/* Gate question */}
             {currentSection.gate && (
-              <div className="bg-blue-500/5 border border-blue-500/15 rounded-lg p-4">
-                <p className="text-sm font-medium mb-3">{currentSection.gate.templateItemName}</p>
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input type="radio" name={`gate_${safeStep}`}
-                      checked={gateAnswers[currentSection.gate.itemKey!] === "yes"}
-                      onChange={() => setGateAnswers((p) => ({ ...p, [currentSection.gate!.itemKey!]: "yes" }))} /> Yes
-                  </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input type="radio" name={`gate_${safeStep}`}
-                      checked={gateAnswers[currentSection.gate.itemKey!] === "no"}
-                      onChange={() => setGateAnswers((p) => ({ ...p, [currentSection.gate!.itemKey!]: "no" }))} /> No
-                  </label>
+              <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: 16 }}>
+                <p style={{ fontSize: 14, fontWeight: 500, color: "#111", marginBottom: 10 }}>{currentSection.gate.templateItemName}</p>
+                <div style={{ display: "flex", gap: 16 }}>
+                  {["yes", "no"].map((v) => (
+                    <label key={v} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14, cursor: "pointer", color: "#111" }}>
+                      <input type="radio" name={`gate_${safeStep}`}
+                        checked={gateAnswers[currentSection.gate!.itemKey!] === v}
+                        onChange={() => setGateAnswers((p) => ({ ...p, [currentSection.gate!.itemKey!]: v }))}
+                        style={{ accentColor: "#3b82f6" }} />
+                      {v === "yes" ? "Yes" : "No"}
+                    </label>
+                  ))}
                 </div>
               </div>
             )}
@@ -175,31 +180,43 @@ export const ApplicationPage = () => {
             }
 
             {currentSection.gate && gateAnswers[currentSection.gate.itemKey!] === "no" && (
-              <p className="text-sm text-muted-foreground py-2">Not applicable — skip to the next section.</p>
+              <p style={{ fontSize: 14, color: "#9ca3af", padding: "8px 0" }}>Not applicable — skip to the next section.</p>
             )}
 
             {currentSection.gate && !gateAnswers[currentSection.gate.itemKey!] && (
-              <p className="text-sm text-muted-foreground py-2">Answer the question above to continue.</p>
+              <p style={{ fontSize: 14, color: "#9ca3af", padding: "8px 0" }}>Answer the question above to continue.</p>
             )}
           </div>
         </div>
 
         {/* Bottom nav */}
-        <div className="px-6 py-4 border-t border-border shrink-0 flex items-center justify-between">
+        <div style={{ padding: "12px 24px", borderTop: "1px solid #e5e7eb", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", background: "white" }}>
           <button onClick={() => setCurrentStep(Math.max(0, safeStep - 1))} disabled={safeStep === 0}
-            className="h-10 px-4 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-30 flex items-center gap-1.5">
-            <ArrowLeft className="h-3.5 w-3.5" /> Back
+            style={{
+              height: 40, padding: "0 16px", borderRadius: 8, border: "1px solid #e5e7eb",
+              background: "white", fontSize: 14, fontWeight: 500, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 6, opacity: safeStep === 0 ? 0.3 : 1, fontFamily: "inherit",
+            }}>
+            <ArrowLeft style={{ width: 14, height: 14 }} /> Back
           </button>
           {isLastStep ? (
             <button onClick={handleSubmit} disabled={submitApp.isPending}
-              className="h-10 px-5 rounded-lg bg-foreground text-background text-sm font-medium hover:bg-foreground/90 transition-colors disabled:opacity-50 flex items-center gap-1.5">
-              {submitApp.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+              style={{
+                height: 40, padding: "0 20px", borderRadius: 8, background: "#3b82f6", color: "white",
+                border: "none", fontSize: 14, fontWeight: 600, cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 6, opacity: submitApp.isPending ? 0.5 : 1, fontFamily: "inherit",
+              }}>
+              {submitApp.isPending ? <Loader2 style={{ width: 14, height: 14 }} /> : <Check style={{ width: 14, height: 14 }} />}
               Submit Application
             </button>
           ) : (
             <button onClick={() => setCurrentStep(safeStep + 1)}
-              className="h-10 px-5 rounded-lg bg-foreground text-background text-sm font-medium hover:bg-foreground/90 transition-colors flex items-center gap-1.5">
-              Next <ArrowRight className="h-3.5 w-3.5" />
+              style={{
+                height: 40, padding: "0 20px", borderRadius: 8, background: "#3b82f6", color: "white",
+                border: "none", fontSize: 14, fontWeight: 600, cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit",
+              }}>
+              Next <ArrowRight style={{ width: 14, height: 14 }} />
             </button>
           )}
         </div>
@@ -215,8 +232,10 @@ function DocRow({ item, token, borrowerId, submitUpload, textValues, onTextChang
   onTextChange: (itemId: string, value: string) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { getExtractedValue, resolveDiscrepancy } = useExtraction();
   const isText = item.inputType === "text";
   const isDone = item.status !== "pending";
+  const extraction = getExtractedValue(item.templateItemId);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -225,39 +244,85 @@ function DocRow({ item, token, borrowerId, submitUpload, textValues, onTextChang
   };
 
   if (isText) {
+    const hasDiscrepancy = extraction?.hasDiscrepancy && extraction.status === "pending";
     return (
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">{item.templateItemName}</label>
-        {item.templateItemDescription && <p className="text-xs text-muted-foreground">{item.templateItemDescription}</p>}
+      <div>
+        <label style={{ fontSize: 13, fontWeight: 500, color: "#111", display: "block", marginBottom: 6 }}>{item.templateItemName}</label>
+        {item.templateItemDescription && <p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>{item.templateItemDescription}</p>}
         <input type="text" value={textValues[item.id] || ""} onChange={(e) => onTextChange(item.id, e.target.value)}
           placeholder={`Enter ${item.templateItemName.toLowerCase()}...`}
-          className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:ring-1 focus:ring-foreground focus:outline-none transition-colors" />
+          style={{
+            width: "100%", height: 40, borderRadius: 8,
+            border: hasDiscrepancy ? "1px solid #fbbf24" : "1px solid #e5e7eb",
+            padding: "0 14px", fontSize: 14, color: "#111", outline: "none", fontFamily: "inherit",
+          }}
+          onFocus={(e) => (e.currentTarget.style.borderColor = hasDiscrepancy ? "#f59e0b" : "#3b82f6")}
+          onBlur={(e) => (e.currentTarget.style.borderColor = hasDiscrepancy ? "#fbbf24" : "#e5e7eb")} />
+        {/* Discrepancy warning */}
+        {hasDiscrepancy && extraction && (
+          <div style={{
+            marginTop: 6, padding: "8px 12px", borderRadius: 8,
+            background: "#fef3c7", border: "1px solid #fbbf24",
+            display: "flex", alignItems: "center", gap: 8, fontSize: 12,
+          }}>
+            <AlertTriangle style={{ width: 14, height: 14, color: "#d97706", flexShrink: 0 }} />
+            <span style={{ flex: 1, color: "#92400e" }}>
+              Document says <strong>"{extraction.extractedValue}"</strong> but you entered <strong>"{extraction.currentValue}"</strong>
+            </span>
+            <button onClick={() => resolveDiscrepancy(item.templateItemId, false)}
+              style={{ width: 24, height: 24, borderRadius: 4, background: "#fef2f2", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+              title="Keep my value">
+              <XIcon style={{ width: 12, height: 12, color: "#ef4444" }} />
+            </button>
+            <button onClick={() => { resolveDiscrepancy(item.templateItemId, true); onTextChange(item.id, extraction.extractedValue); }}
+              style={{ width: 24, height: 24, borderRadius: 4, background: "#f0fdf4", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+              title="Use document value">
+              <Check style={{ width: 12, height: 12, color: "#16a34a" }} />
+            </button>
+          </div>
+        )}
+        {/* Auto-filled indicator */}
+        {extraction && !hasDiscrepancy && extraction.status === "pending" && !extraction.currentValue && (
+          <p style={{ fontSize: 11, color: "#16a34a", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
+            <Check style={{ width: 10, height: 10 }} /> Auto-filled from document
+          </p>
+        )}
       </div>
     );
   }
 
   return (
-    <div className={cn("flex items-center gap-3 px-4 py-3 rounded-lg border transition-colors",
-      isDone ? "border-foreground/20 bg-foreground/[0.02]" : "border-border")}>
-      <div className={cn("h-6 w-6 rounded-full flex items-center justify-center shrink-0",
-        isDone ? "bg-foreground text-background" : "bg-muted text-muted-foreground")}>
-        {isDone ? <Check className="h-3 w-3" /> : <Upload className="h-3 w-3" />}
+    <div style={{
+      display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 10,
+      border: isDone ? "1px solid #d1fae5" : "1px solid #e5e7eb",
+      background: isDone ? "#f0fdf4" : "white",
+    }}>
+      <div style={{
+        width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+        background: isDone ? "#16a34a" : "#f3f4f6",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        {isDone ? <Check style={{ width: 12, height: 12, color: "white" }} /> : <Upload style={{ width: 12, height: 12, color: "#9ca3af" }} />}
       </div>
-      <div className="flex-1 min-w-0">
-        <p className={cn("text-sm", isDone && "text-muted-foreground")}>{item.templateItemName}</p>
-        {item.templateItemDescription && <p className="text-xs text-muted-foreground">{item.templateItemDescription}</p>}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: 14, color: isDone ? "#6b7280" : "#111" }}>{item.templateItemName}</p>
+        {item.templateItemDescription && <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{item.templateItemDescription}</p>}
       </div>
       {!isDone ? (
         <>
-          <input ref={fileInputRef} type="file" className="hidden" onChange={handleFile} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" />
+          <input ref={fileInputRef} type="file" style={{ display: "none" }} onChange={handleFile} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" />
           <button onClick={() => fileInputRef.current?.click()} disabled={submitUpload.isPending}
-            className="h-8 px-3 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50 flex items-center gap-1.5">
-            {submitUpload.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
-            Choose file
+            style={{
+              height: 32, padding: "0 14px", borderRadius: 8, background: "#3b82f6", color: "white",
+              border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 4, opacity: submitUpload.isPending ? 0.5 : 1, fontFamily: "inherit",
+            }}>
+            {submitUpload.isPending ? <Loader2 style={{ width: 12, height: 12 }} /> : <Upload style={{ width: 12, height: 12 }} />}
+            Upload
           </button>
         </>
       ) : (
-        <span className="text-xs font-medium bg-foreground/10 text-foreground px-2.5 py-1 rounded-md">Done</span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: "#16a34a", background: "#dcfce7", padding: "3px 8px", borderRadius: 4 }}>Done</span>
       )}
     </div>
   );
