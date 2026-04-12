@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Mail, Phone, MapPin, FileText, Shield, Copy, Check, ExternalLink } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, FileText, Shield, Copy, Check, ExternalLink, Mic } from "lucide-react";
 import { PIPELINE_STAGES, STAGE_CONFIG } from "@/demo/crm/data/mockData";
 import { useBorrowers } from "../hooks/useSupabaseData";
 import { supabase } from "@/lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
 import { BorrowerDocumentsTab } from "../components/BorrowerDocumentsTab";
+import { AIModeTab } from "../components/AIModeTab";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
@@ -20,6 +21,7 @@ const TABS = [
   { id: "overview", label: "Overview" },
   { id: "application", label: "Application" },
   { id: "documents", label: "Documents" },
+  { id: "ai-mode", label: "AI Mode" },
   { id: "verification", label: "AI Verification" },
 ];
 
@@ -33,6 +35,7 @@ export const AuthBorrowerDetail = () => {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [notes, setNotes] = useState<string | null>(null);
   const [savingNotes, setSavingNotes] = useState(false);
+  const [recommendedTemplate, setRecommendedTemplate] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
@@ -192,6 +195,7 @@ export const AuthBorrowerDetail = () => {
           {TABS.map((tab) => (
             <button
               key={tab.id}
+              data-tab={tab.id}
               onClick={() => setActiveTab(tab.id)}
               style={{
                 padding: "10px 16px", fontSize: 13, fontWeight: activeTab === tab.id ? 600 : 400,
@@ -264,8 +268,15 @@ export const AuthBorrowerDetail = () => {
 
         {activeTab === "documents" && (
           <div style={{ background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: 20 }}>
-            <BorrowerDocumentsTab borrower={borrower} />
+            <BorrowerDocumentsTab borrower={borrower} recommendedTemplate={recommendedTemplate} />
           </div>
+        )}
+
+        {activeTab === "ai-mode" && (
+          <AIModeTab borrower={borrower} onSetupDocs={(template) => {
+            setRecommendedTemplate(template);
+            setActiveTab("documents");
+          }} />
         )}
 
         {activeTab === "verification" && (

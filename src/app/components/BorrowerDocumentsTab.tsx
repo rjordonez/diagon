@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link2, Copy, Check, FileText, Upload, ExternalLink, HelpCircle, ChevronDown, ChevronRight, Bot } from "lucide-react";
 import { cn } from "@/demo/lib/utils";
@@ -14,7 +14,12 @@ interface Borrower {
   diagonSequence?: string | null;
 }
 
-export const BorrowerDocumentsTab = ({ borrower }: { borrower: Borrower }) => {
+interface Props {
+  borrower: Borrower;
+  recommendedTemplate?: string | null;
+}
+
+export const BorrowerDocumentsTab = ({ borrower, recommendedTemplate }: Props) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -64,6 +69,16 @@ export const BorrowerDocumentsTab = ({ borrower }: { borrower: Borrower }) => {
   const baseTemplates = templates.filter((t) => !t.isAddon);
   const addonTemplates = templates.filter((t) => t.isAddon);
 
+  // Auto-select recommended template from AI Mode
+  useEffect(() => {
+    if (!recommendedTemplate || baseTemplates.length === 0) return;
+    const match = baseTemplates.find((t) =>
+      t.name.toLowerCase().includes(recommendedTemplate.toLowerCase()) ||
+      recommendedTemplate.toLowerCase().includes(t.name.toLowerCase().split(" ")[0])
+    );
+    if (match && !selectedTemplateId) setSelectedTemplateId(match.id);
+  }, [recommendedTemplate, baseTemplates]);
+
   const inputClass = "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:border-foreground focus:ring-1 focus:ring-foreground focus:outline-none transition-colors";
 
   const handleGenerateLink = async () => {
@@ -85,7 +100,13 @@ export const BorrowerDocumentsTab = ({ borrower }: { borrower: Borrower }) => {
   if (!uploadLink) {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">Select a template to generate an upload link for {borrower.firstName}.</p>
+        {recommendedTemplate ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, background: "#eff6ff", border: "1px solid #bfdbfe", marginBottom: 12 }}>
+            <span style={{ fontSize: 13, color: "#1e40af" }}>AI recommends <strong>{recommendedTemplate}</strong> template based on your call.</span>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Select a template to generate an upload link for {borrower.firstName}.</p>
+        )}
         {baseTemplates.length === 0 ? (
           <div className="text-center py-6">
             <p className="text-sm text-muted-foreground mb-2">No templates yet.</p>

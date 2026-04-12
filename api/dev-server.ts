@@ -18,7 +18,18 @@ function addVercelHelpers(req: any, res: any, body: string) {
 async function start() {
   const { default: chatHandler } = await import("./chat.js");
   const { default: borrowerChatHandler } = await import("./borrower-chat.js");
+  const { default: transcribeHandler } = await import("./transcribe.js");
+  const { default: analyzeTranscriptHandler } = await import("./analyze-transcript.js");
+  const { default: extractDocumentHandler } = await import("./extract-document.js");
   const http = await import("http");
+
+  const handlers: Record<string, any> = {
+    "/api/chat": chatHandler,
+    "/api/borrower-chat": borrowerChatHandler,
+    "/api/transcribe": transcribeHandler,
+    "/api/analyze-transcript": analyzeTranscriptHandler,
+    "/api/extract-document": extractDocumentHandler,
+  };
 
   const server = http.createServer(async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -27,13 +38,13 @@ async function start() {
 
     if (req.method === "OPTIONS") { res.writeHead(200); res.end(); return; }
 
-    if (req.method === "POST" && (req.url === "/api/chat" || req.url === "/api/borrower-chat")) {
+    const handler = req.method === "POST" && req.url ? handlers[req.url] : undefined;
+    if (handler) {
       let body = "";
       req.on("data", (chunk: string) => { body += chunk; });
       req.on("end", async () => {
         try {
           addVercelHelpers(req, res, body);
-          const handler = req.url === "/api/borrower-chat" ? borrowerChatHandler : chatHandler;
           await handler(req as any, res as any);
         } catch (err: any) {
           console.error("API error:", err.message || err);
@@ -47,8 +58,11 @@ async function start() {
 
   server.listen(PORT, () => {
     console.log(`API dev server running on http://localhost:${PORT}`);
-    console.log(`  POST /api/chat          (LO AI agent)`);
-    console.log(`  POST /api/borrower-chat (Borrower copilot)`);
+    console.log(`  POST /api/chat              (LO AI agent)`);
+    console.log(`  POST /api/borrower-chat     (Borrower copilot)`);
+    console.log(`  POST /api/transcribe        (AssemblyAI transcription)`);
+    console.log(`  POST /api/analyze-transcript (OpenAI transcript analysis)`);
+    console.log(`  POST /api/extract-document  (OpenAI document extraction)`);
   });
 }
 
